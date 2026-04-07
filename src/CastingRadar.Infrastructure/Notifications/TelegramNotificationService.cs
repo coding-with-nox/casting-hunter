@@ -38,13 +38,16 @@ public class TelegramNotificationService(
             ? castingCall.Deadline.Value.ToString("d MMMM yyyy")
             : "Non specificata";
 
+        // Validate SourceUrl before embedding it (prevents Telegram Markdown injection)
+        var safeUrl = IsValidHttpUrl(castingCall.SourceUrl) ? castingCall.SourceUrl : "#";
+
         var text = $"""
             🎬 *Nuovo Casting: {EscapeMarkdown(castingCall.Title)}*
             📍 Luogo: {EscapeMarkdown(castingCall.Location ?? "Non specificato")}
             🎭 Tipo: {castingCall.Type}
             💰 Retribuito: {isPaidEmoji}
             ⏰ Scadenza: {deadline}
-            🔗 [Candidati ora]({castingCall.SourceUrl})
+            🔗 [Candidati ora]({safeUrl})
             """;
 
         try
@@ -64,4 +67,24 @@ public class TelegramNotificationService(
 
     private static string EscapeMarkdown(string text) =>
         text.Replace("*", "\\*").Replace("_", "\\_").Replace("[", "\\[").Replace("`", "\\`");
+
+    private static bool IsValidHttpUrl(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri)
+        && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp)
+        && !uri.IsLoopback
+        && !IsPrivateIp(uri.Host);
+
+    private static bool IsPrivateIp(string host)
+    {
+        // Block RFC-1918 / link-local ranges to prevent SSRF via Telegram links
+        if (System.Net.IPAddress.TryParse(host, out var ip))
+        {
+            var bytes = ip.GetAddressBytes();
+            return bytes[0] == 10
+                || (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31)
+                || (bytes[0] == 192 && bytes[1] == 168)
+                || (bytes[0] == 169 && bytes[1] == 254); // link-local
+        }
+        return false;
+    }
 }

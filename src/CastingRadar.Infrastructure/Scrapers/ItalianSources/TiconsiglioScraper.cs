@@ -14,6 +14,12 @@ public class TiconsiglioScraper(IHttpClientFactory httpClientFactory, ILogger<Ti
 
     private const string BaseUrl = "https://ticonsiglio.com/casting/";
 
+    // SSRF guard: only follow links to the expected host
+    private static bool IsSafeUrl(string? url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri)
+        && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp)
+        && uri.Host.EndsWith("ticonsiglio.com", StringComparison.OrdinalIgnoreCase);
+
     protected override async Task<IEnumerable<CastingCall>> ScrapeInternalAsync(ScraperFilter filter, CancellationToken ct)
     {
         var results = new List<CastingCall>();
@@ -24,7 +30,7 @@ public class TiconsiglioScraper(IHttpClientFactory httpClientFactory, ILogger<Ti
         // Try multiple selectors for article links
         var links = doc.QuerySelectorAll("article a[href], .post a[href], h2 a[href]")
             .Select(a => a.GetAttribute("href"))
-            .Where(href => href is not null && href.Contains("casting"))
+            .Where(href => href is not null && href.Contains("casting") && IsSafeUrl(href)) // SSRF guard
             .Distinct()
             .Take(20)
             .ToList();

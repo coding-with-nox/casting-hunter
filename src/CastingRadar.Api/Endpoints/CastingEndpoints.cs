@@ -24,14 +24,30 @@ public static class CastingEndpoints
             GetCastingCallsHandler handler,
             CancellationToken ct) =>
         {
+            CastingType[]? parsedTypes = null;
+            if (types is not null)
+            {
+                try { parsedTypes = types.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(t => Enum.Parse<CastingType>(t, true)).ToArray(); }
+                catch (ArgumentException) { return Results.BadRequest("Invalid 'types' value."); }
+            }
+
+            SourceRegion[]? parsedRegions = null;
+            if (regions is not null)
+            {
+                try { parsedRegions = regions.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(r => Enum.Parse<SourceRegion>(r, true)).ToArray(); }
+                catch (ArgumentException) { return Results.BadRequest("Invalid 'regions' value."); }
+            }
+
+            // Sanitize free-text inputs: max 200 chars, no control characters
+            var safeKeywords = keywords?.Length > 200 ? keywords[..200] : keywords;
+            var safeGender   = gender?.Length > 20 ? gender[..20] : gender;
+
             var filter = new ScraperFilter(
-                Keywords: keywords?.Split(',', StringSplitOptions.RemoveEmptyEntries),
-                Types: types?.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                             .Select(t => Enum.Parse<CastingType>(t, true)).ToArray(),
-                Regions: regions?.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                                  .Select(r => Enum.Parse<SourceRegion>(r, true)).ToArray(),
+                Keywords: safeKeywords?.Split(',', StringSplitOptions.RemoveEmptyEntries),
+                Types: parsedTypes,
+                Regions: parsedRegions,
                 OnlyPaid: onlyPaid ?? false,
-                GenderFilter: gender,
+                GenderFilter: safeGender,
                 MinAge: null,
                 MaxAge: null);
 

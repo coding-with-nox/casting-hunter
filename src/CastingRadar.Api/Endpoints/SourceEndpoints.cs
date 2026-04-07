@@ -3,6 +3,7 @@ using CastingRadar.Application.Interfaces;
 using CastingRadar.Application.UseCases.ScrapeAllSources;
 using CastingRadar.Domain.ValueObjects;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace CastingRadar.Api.Endpoints;
 
@@ -22,7 +23,7 @@ public static class SourceEndpoints
         {
             var result = await handler.HandleAsync(ScraperFilter.Default, ct);
             return Results.Ok(new { result.TotalFound, result.TotalNew });
-        });
+        }).RequireRateLimiting("scrape");
 
         group.MapPost("/{name}/scrape", async (
             string name,
@@ -42,7 +43,7 @@ public static class SourceEndpoints
 
             var result = await handler.HandleAsync(ScraperFilter.Default, ct);
             return Results.Ok(new { result.TotalFound, result.TotalNew });
-        });
+        }).RequireRateLimiting("scrape");
 
         return app;
     }
