@@ -28,6 +28,8 @@ services:
 
   api:
     build:
+      context: .
+      dockerfile: src/CastingRadar.Api/Dockerfile
       target: build   # stop at SDK build stage — no publish stripping
       args:
         CONFIGURATION: Debug
@@ -55,6 +57,8 @@ services:
 
   worker:
     build:
+      context: .
+      dockerfile: src/CastingRadar.Worker/Dockerfile
       target: build
       args:
         CONFIGURATION: Debug
