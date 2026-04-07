@@ -1,0 +1,98 @@
+# Debug override — use with:
+#   docker compose -f docker-compose.yml -f docker-compose.debug.yml up
+#
+# What this adds:
+#  - API and Worker run as Debug builds with source-mapped volumes
+#  - VSDBG remote debugger sidecar injected into api/worker containers
+#  - .NET remote debugger port exposed (API: 2222, Worker: 2223)
+#  - Hot-reload via dotnet watch on the api
+#  - Adminer (DB GUI) on port 8080
+#  - Log level set to Debug
+#  - Scraping interval reduced to 1 minute for faster iteration
+
+services:
+  db:
+    ports:
+      - "5432:5432"   # expose DB directly for local tools (DBeaver, psql)
+
+  api:
+    build:
+      target: build   # stop at SDK build stage — no publish stripping
+      args:
+        CONFIGURATION: Debug
+    command: >
+      dotnet watch run
+        --project /src/src/CastingRadar.Api/CastingRadar.Api.csproj
+        --no-hot-reload
+    volumes:
+      - .:/src:delegated                      # live source mount
+      - ~/.nuget/packages:/root/.nuget/packages:ro  # reuse host NuGet cache
+      - vsdbg:/vsdbg:ro                       # remote debugger binary
+    ports:
+      - "5000:8080"   # API
+      - "2222:22"     # SSH/VSDBG remote attach
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      UsePostgres: "true"
+      ConnectionStrings__DefaultConnection: "Host=db;Database=castingradar;Username=castingradar;Password=${DB_PASSWORD:-castingradar_secret}"
+      CastingRadar__Telegram__BotToken: "${TELEGRAM_BOT_TOKEN:-}"
+      CastingRadar__Telegram__ChatId: "${TELEGRAM_CHAT_ID:-}"
+      CastingRadar__ScrapingIntervalHours: "0"   # disable auto-scrape in debug
+      Logging__LogLevel__Default: Debug
+      Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command: Information
+
+  worker:
+    build:
+      target: build
+      args:
+        CONFIGURATION: Debug
+    command: >
+      dotnet watch run
+        --project /src/src/CastingRadar.Worker/CastingRadar.Worker.csproj
+        --no-hot-reload
+    volumes:
+      - .:/src:delegated
+      - ~/.nuget/packages:/root/.nuget/packages:ro
+      - vsdbg:/vsdbg:ro
+    ports:
+      - "2223:22"     # VSDBG remote attach for Worker
+    environment:
+      DOTNET_ENVIRONMENT: Development
+      UsePostgres: "true"
+      ConnectionStrings__DefaultConnection: "Host=db;Database=castingradar;Username=castingradar;Password=${DB_PASSWORD:-castingradar_secret}"
+      CastingRadar__Telegram__BotToken: "${TELEGRAM_BOT_TOKEN:-}"
+      CastingRadar__Telegram__ChatId: "${TELEGRAM_CHAT_ID:-}"
+      CastingRadar__ScrapingIntervalHours: "1"   # 1-minute interval for fast debug cycles
+      Logging__LogLevel__Default: Debug
+
+  # VSDBG installer — runs once and exits, shares binary via named volume
+  vsdbg-installer:
+    image: mcr.microsoft.com/dotnet/sdk:9.0
+    volumes:
+      - vsdbg:/vsdbg
+    command: >
+      bash -c "
+        if [ ! -f /vsdbg/vsdbg ]; then
+          curl -sSL https://aka.ms/getvsdbgsh |
+            bash /dev/stdin -v latest -l /vsdbg
+        fi
+      "
+    restart: "no"
+
+  # Adminer — lightweight DB GUI at http://localhost:8080
+  adminer:
+    image: adminer:latest
+    restart: unless-stopped
+    ports:
+      - "8090:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+      ADMINER_DESIGN: pepa-linha-dark
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  vsdbg:
