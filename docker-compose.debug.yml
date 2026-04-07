@@ -1,14 +1,17 @@
-# Debug override — use with:
-#   docker compose -f docker-compose.yml -f docker-compose.debug.yml up
+# Debug — standalone compose (non richiede docker-compose.yml)
 #
-# What this adds:
-#  - API and Worker run as Debug builds with source-mapped volumes
-#  - VSDBG remote debugger sidecar injected into api/worker containers
-#  - .NET remote debugger port exposed (API: 2222, Worker: 2223)
-#  - Hot-reload via dotnet watch on the api
-#  - Adminer (DB GUI) on port 8080
-#  - Log level set to Debug
-#  - Scraping interval reduced to 1 minute for faster iteration
+# Avvio:
+#   docker compose -f docker-compose.debug.yml up -d --build
+#
+# Caratteristiche:
+#  - Build target=build (stage SDK, nessun publish/stripping)
+#  - Sorgenti montati live (.:/src) con dotnet watch
+#  - bin/ e obj/ isolati per container tramite named volumes
+#    (evita il file-lock su deps.json quando api e worker buildano in parallelo)
+#  - VSDBG remote debugger (API: 2222, Worker: 2223)
+#  - Adminer GUI DB su porta 8090
+#  - PostgreSQL esposto su 5432
+#  - Log level Debug, auto-scrape disabilitato sull'API
 
 services:
   db:
@@ -20,7 +23,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      - "5432:5432"   # esposto per DBeaver / psql dall'host
+      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U castingradar"]
       interval: 10s
@@ -30,7 +33,7 @@ services:
     build:
       context: .
       dockerfile: src/CastingRadar.Api/Dockerfile
-      target: build   # stop at SDK build stage — no publish stripping
+      target: build
       args:
         CONFIGURATION: Debug
     command: >
@@ -38,12 +41,22 @@ services:
         --project /src/src/CastingRadar.Api/CastingRadar.Api.csproj
         --no-hot-reload
     volumes:
-      - .:/src:delegated                      # live source mount
-      - ~/.nuget/packages:/root/.nuget/packages:ro  # reuse host NuGet cache
-      - vsdbg:/vsdbg:ro                       # remote debugger binary
+      - .:/src:delegated
+      - ~/.nuget/packages:/root/.nuget/packages:ro
+      - vsdbg:/vsdbg:ro
+      # Volumi isolati per bin/obj: evitano il file-lock con il worker
+      # sui progetti condivisi (Infrastructure, Application, Domain)
+      - api-bin-api:/src/src/CastingRadar.Api/bin
+      - api-obj-api:/src/src/CastingRadar.Api/obj
+      - infra-bin-api:/src/src/CastingRadar.Infrastructure/bin
+      - infra-obj-api:/src/src/CastingRadar.Infrastructure/obj
+      - app-bin-api:/src/src/CastingRadar.Application/bin
+      - app-obj-api:/src/src/CastingRadar.Application/obj
+      - domain-bin-api:/src/src/CastingRadar.Domain/bin
+      - domain-obj-api:/src/src/CastingRadar.Domain/obj
     ports:
-      - "5000:8080"   # API
-      - "2222:22"     # SSH/VSDBG remote attach
+      - "5000:8080"
+      - "2222:22"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
@@ -51,9 +64,12 @@ services:
       ConnectionStrings__DefaultConnection: "Host=db;Database=castingradar;Username=castingradar;Password=${DB_PASSWORD:-castingradar_secret}"
       CastingRadar__Telegram__BotToken: "${TELEGRAM_BOT_TOKEN:-}"
       CastingRadar__Telegram__ChatId: "${TELEGRAM_CHAT_ID:-}"
-      CastingRadar__ScrapingIntervalHours: "0"   # disable auto-scrape in debug
+      CastingRadar__ScrapingIntervalHours: "0"
       Logging__LogLevel__Default: Debug
       Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command: Information
+    depends_on:
+      db:
+        condition: service_healthy
 
   worker:
     build:
@@ -70,18 +86,29 @@ services:
       - .:/src:delegated
       - ~/.nuget/packages:/root/.nuget/packages:ro
       - vsdbg:/vsdbg:ro
+      # Volumi separati dai corrispettivi dell'api
+      - worker-bin-worker:/src/src/CastingRadar.Worker/bin
+      - worker-obj-worker:/src/src/CastingRadar.Worker/obj
+      - infra-bin-worker:/src/src/CastingRadar.Infrastructure/bin
+      - infra-obj-worker:/src/src/CastingRadar.Infrastructure/obj
+      - app-bin-worker:/src/src/CastingRadar.Application/bin
+      - app-obj-worker:/src/src/CastingRadar.Application/obj
+      - domain-bin-worker:/src/src/CastingRadar.Domain/bin
+      - domain-obj-worker:/src/src/CastingRadar.Domain/obj
     ports:
-      - "2223:22"     # VSDBG remote attach for Worker
+      - "2223:22"
     environment:
       DOTNET_ENVIRONMENT: Development
       UsePostgres: "true"
       ConnectionStrings__DefaultConnection: "Host=db;Database=castingradar;Username=castingradar;Password=${DB_PASSWORD:-castingradar_secret}"
       CastingRadar__Telegram__BotToken: "${TELEGRAM_BOT_TOKEN:-}"
       CastingRadar__Telegram__ChatId: "${TELEGRAM_CHAT_ID:-}"
-      CastingRadar__ScrapingIntervalHours: "1"   # 1-minute interval for fast debug cycles
+      CastingRadar__ScrapingIntervalHours: "1"
       Logging__LogLevel__Default: Debug
+    depends_on:
+      db:
+        condition: service_healthy
 
-  # VSDBG installer — runs once and exits, shares binary via named volume
   vsdbg-installer:
     image: mcr.microsoft.com/dotnet/sdk:9.0
     volumes:
@@ -95,7 +122,6 @@ services:
       "
     restart: "no"
 
-  # Adminer — lightweight DB GUI at http://localhost:8080
   adminer:
     image: adminer:latest
     restart: unless-stopped
@@ -111,3 +137,21 @@ services:
 volumes:
   pgdata:
   vsdbg:
+  # api — bin/obj isolati per progetto
+  api-bin-api:
+  api-obj-api:
+  infra-bin-api:
+  infra-obj-api:
+  app-bin-api:
+  app-obj-api:
+  domain-bin-api:
+  domain-obj-api:
+  # worker — bin/obj isolati per progetto
+  worker-bin-worker:
+  worker-obj-worker:
+  infra-bin-worker:
+  infra-obj-worker:
+  app-bin-worker:
+  app-obj-worker:
+  domain-bin-worker:
+  domain-obj-worker:

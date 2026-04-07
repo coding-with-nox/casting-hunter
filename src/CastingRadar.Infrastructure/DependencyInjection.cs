@@ -11,6 +11,7 @@ using CastingRadar.Infrastructure.Persistence.Repositories;
 using CastingRadar.Infrastructure.Scrapers.InternationalSources;
 using CastingRadar.Infrastructure.Scrapers.ItalianSources;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -24,15 +25,26 @@ public static class DependencyInjection
         bool usePostgres = false)
     {
         // Database
+        // PendingModelChangesWarning: value comparers added after migration creation
+        // don't affect the DB schema — suppress to avoid crash on startup.
+        static void ConfigureWarnings(DbContextOptionsBuilder opt) =>
+            opt.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning));
+
         if (usePostgres)
         {
             services.AddDbContext<CastingRadarDbContext>(opt =>
-                opt.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+            {
+                opt.UseNpgsql(configuration.GetConnectionString("DefaultConnection"));
+                ConfigureWarnings(opt);
+            });
         }
         else
         {
             services.AddDbContext<CastingRadarDbContext>(opt =>
-                opt.UseSqlite(configuration.GetConnectionString("DefaultConnection") ?? "Data Source=castingradar.db"));
+            {
+                opt.UseSqlite(configuration.GetConnectionString("DefaultConnection") ?? "Data Source=castingradar.db");
+                ConfigureWarnings(opt);
+            });
         }
 
         // Repositories
