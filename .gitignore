@@ -1,0 +1,60 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.vscode/
+*.log
+logs/
+*.db
+*.db-shm
+*.db-wal
+castingradar.db
+
+# NuGet
+*.nupkg
+.nuget/
+packages/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# EF Core migrations temp
+*.mdf
+*.ldf
+
+# Build outputs
+publish/
+wwwroot/
+
+# Secrets — NEVER commit
+appsettings.*.json
+!appsettings.Development.json
+secrets.json
+.env
+.env.*
+!.env.example
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Docker
+docker-compose.override.yml
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Rider / JetBrains
+.idea/
+*.sln.iml
+
+# Test results
+TestResults/
+coverage/
+*.coveragexml
+*.trx

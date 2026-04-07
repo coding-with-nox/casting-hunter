@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-CastingRadar.Worker-c0beef93-8aac-43dc-9a8a-32dee99313b0</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.14" />
+    <PackageReference Include="Serilog.AspNetCore" Version="9.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CastingRadar.Infrastructure\CastingRadar.Infrastructure.csproj" />
+    <ProjectReference Include="..\CastingRadar.Application\CastingRadar.Application.csproj" />
+    <ProjectReference Include="..\CastingRadar.Domain\CastingRadar.Domain.csproj" />
+  </ItemGroup>
+</Project>

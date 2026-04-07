@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CastingRadar.Api/CastingRadar.Api.csproj" />
+    <Project Path="src/CastingRadar.Application/CastingRadar.Application.csproj" />
+    <Project Path="src/CastingRadar.Domain/CastingRadar.Domain.csproj" />
+    <Project Path="src/CastingRadar.Infrastructure/CastingRadar.Infrastructure.csproj" />
+    <Project Path="src/CastingRadar.Worker/CastingRadar.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CastingRadar.Application.Tests/CastingRadar.Application.Tests.csproj" />
+    <Project Path="tests/CastingRadar.Domain.Tests/CastingRadar.Domain.Tests.csproj" />
+    <Project Path="tests/CastingRadar.Infrastructure.Tests/CastingRadar.Infrastructure.Tests.csproj" />
+  </Folder>
+</Solution>
