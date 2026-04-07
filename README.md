@@ -15,76 +15,146 @@ Aggregatore automatico di bandi di casting per attrici italiane. Aggrega da 7 fo
 
 - [.NET 9 SDK](https://dotnet.microsoft.com/download)
 - [Node.js 20+](https://nodejs.org/) (per il frontend)
-- Docker + Docker Compose (opzionale, per la produzione)
+- Docker + Docker Compose (opzionale, per produzione e debug containerizzato)
 
-## Avvio rapido (sviluppo)
+---
 
-### 1. Clona e ripristina dipendenze
+## Avvio locale (sviluppo senza Docker)
+
+### 1. Ripristina dipendenze
 
 ```bash
-git clone <repo>
-cd actoring-app
 dotnet restore CastingRadar.slnx
+cd frontend && npm install && cd ..
 ```
 
 ### 2. Avvia il backend
 
 ```bash
-cd src/CastingRadar.Api
-dotnet run
+dotnet run --project src/CastingRadar.Api
 # API disponibile su http://localhost:5000
-# Il database SQLite viene creato automaticamente
+# Il database SQLite (castingradar.db) viene creato automaticamente
 ```
 
-### 3. Avvia il frontend (in un altro terminale)
+### 3. Avvia il frontend (terminale separato)
 
 ```bash
 cd frontend
-npm install
 npm run dev
 # App disponibile su http://localhost:5173
+# Le chiamate /api/* sono proxate automaticamente verso http://localhost:5000
 ```
 
-Il frontend proxya le chiamate `/api/*` verso `http://localhost:5000`.
-
-## Configurazione Telegram
-
-1. Crea un bot con [@BotFather](https://t.me/BotFather) su Telegram → ottieni il **Bot Token**
-2. Invia un messaggio al bot, poi usa [@userinfobot](https://t.me/userinfobot) per ottenere il tuo **Chat ID**
-3. Aggiorna `src/CastingRadar.Api/appsettings.json`:
-
-```json
-{
-  "CastingRadar": {
-    "Telegram": {
-      "BotToken": "123456:ABC-DEF...",
-      "ChatId": "123456789"
-    }
-  }
-}
-```
-
-Oppure aggiorna il profilo dalla pagina **Impostazioni** nell'app.
-
-## Build frontend per produzione
+### 4. Build frontend per produzione embedded
 
 ```bash
 cd frontend
 npm run build
 # Output in src/CastingRadar.Api/wwwroot/
+# Dopo la build, dotnet run serve anche la SPA su http://localhost:5000
 ```
 
-## Produzione con Docker Compose
+---
+
+## Docker Compose — Produzione
+
+Esegui **solo** con `docker-compose.yml`. Usa immagini Release ottimizzate, nessuna porta di debug esposta.
+
+### 1. Crea il file `.env`
 
 ```bash
-# Crea un file .env
-echo "TELEGRAM_BOT_TOKEN=tuo_token" > .env
-echo "TELEGRAM_CHAT_ID=tuo_chat_id" >> .env
-echo "DB_PASSWORD=password_sicura" >> .env
-
-docker compose up -d
-# API su http://localhost:5000
+cp .env.example .env   # se esiste, altrimenti crea manualmente
 ```
+
+```env
+TELEGRAM_BOT_TOKEN=123456:ABC-DEF...
+TELEGRAM_CHAT_ID=123456789
+DB_PASSWORD=password_sicura
+```
+
+### 2. Avvia lo stack
+
+```bash
+docker compose up -d
+```
+
+```
+Servizi avviati:
+  db       → PostgreSQL 16 (interno, non esposto)
+  api      → http://localhost:5000
+  worker   → background scraper (nessuna porta)
+```
+
+### 3. Comandi utili
+
+```bash
+# Visualizza i log in tempo reale
+docker compose logs -f
+
+# Log solo dell'API
+docker compose logs -f api
+
+# Ferma tutto
+docker compose down
+
+# Ferma e rimuove anche i volumi (attenzione: cancella il DB)
+docker compose down -v
+```
+
+---
+
+## Docker Compose — Debug
+
+Esegui con **entrambi** i file sovrapposti: `docker-compose.yml` + `docker-compose.debug.yml`.
+Il secondo file fa override del primo aggiungendo strumenti di debug senza modificare il compose di produzione.
+
+> Per i dettagli completi (porte, comandi attach, variabili) vedi [debug.md](debug.md).
+
+### 1. Avvia lo stack di debug
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d
+```
+
+```
+Servizi avviati:
+  db          → PostgreSQL 16 (porta 5432 esposta per DBeaver/psql)
+  api         → http://localhost:5000  (dotnet watch, sorgenti montati)
+  api         → porta 2222             (VSDBG remote attach)
+  worker      → porta 2223             (VSDBG remote attach)
+  adminer     → http://localhost:8090  (GUI database, tema dark)
+  vsdbg-installer → sidecar, installa il debugger e si chiude
+```
+
+### 2. Ferma lo stack di debug
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.debug.yml down
+```
+
+### 3. Rebuild dopo modifiche ai `.csproj` o ai Dockerfile
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d --build
+```
+
+---
+
+## Configurazione Telegram
+
+1. Crea un bot con [@BotFather](https://t.me/BotFather) → ottieni il **Bot Token**
+2. Invia un messaggio al bot, poi usa [@userinfobot](https://t.me/userinfobot) → ottieni il **Chat ID**
+3. Imposta i valori nel file `.env` oppure dalla pagina **Impostazioni** nell'app
+
+---
+
+## Test
+
+```bash
+dotnet test CastingRadar.slnx
+```
+
+---
 
 ## API endpoints
 
@@ -95,18 +165,14 @@ docker compose up -d
 | POST | `/api/castings/{id}/favorite` | Toggle preferito |
 | POST | `/api/castings/{id}/applied` | Segna come candidata |
 | GET | `/api/sources` | Stato delle fonti |
-| POST | `/api/sources/scrape-all` | Trigger scraping manuale |
+| POST | `/api/sources/scrape-all` | Trigger scraping manuale (rate limit: 3/10min) |
 | POST | `/api/sources/{name}/scrape` | Scraping di una singola fonte |
 | GET | `/api/profile` | Profilo utente |
 | PUT | `/api/profile` | Aggiorna preferenze |
 | GET | `/api/stats` | Statistiche |
 | GET | `/health` | Health check |
 
-## Test
-
-```bash
-dotnet test CastingRadar.slnx
-```
+---
 
 ## Fonti supportate
 
