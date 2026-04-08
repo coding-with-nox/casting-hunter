@@ -3,6 +3,8 @@ using AngleSharp.Dom;
 using CastingRadar.Application.Interfaces;
 using CastingRadar.Domain.Entities;
 using Microsoft.Extensions.Logging;
+using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace CastingRadar.Infrastructure.Scrapers.Bandi;
 
@@ -63,6 +65,28 @@ public abstract class BaseBandoScraper(IHttpClientFactory httpClientFactory, ILo
         }
 
         return null;
+    }
+
+    protected static DateTime? ExtractItalianDateFromText(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return null;
+        }
+
+        var match = Regex.Match(
+            text,
+            @"(?:(?:scade(?:\s+il)?|chiusura|entro(?:\s+e\s+non\s+oltre)?|apertura|pubblicato\s+il|aggiornato\s+l[' ]?)\s*)?(?<date>\d{1,2}\s+[A-Za-zÀ-ÿ'`]+\s+\d{4})",
+            RegexOptions.IgnoreCase);
+
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        return DateTime.TryParse(match.Groups["date"].Value, CultureInfo.GetCultureInfo("it-IT"), DateTimeStyles.AssumeLocal, out var parsed)
+            ? parsed
+            : null;
     }
 
     protected abstract Task<IEnumerable<ScrapedBandoItem>> ScrapeInternalAsync(BandoSource source, CancellationToken ct);

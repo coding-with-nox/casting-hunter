@@ -83,10 +83,13 @@ public class ScrapeBandiPhaseOneHandler(
         "informatico", "developer", "hr", "risorse umane", "software", "sistemista"
     ];
 
-    public async Task<BandoScrapeResult> HandleAsync(CancellationToken ct = default)
+    public Task<BandoScrapeResult> HandleAsync(CancellationToken ct = default) =>
+        HandleAsync(1, 4, ct);
+
+    public async Task<BandoScrapeResult> HandleAsync(int minPriority, int maxPriority, CancellationToken ct = default)
     {
         var enabledSources = (await sourceRepository.GetAllAsync(ct))
-            .Where(source => source.IsEnabled && source.Priority <= 4)
+            .Where(source => source.IsEnabled && source.Priority >= minPriority && source.Priority <= maxPriority)
             .ToList();
 
         var scraperMap = scrapers.ToDictionary(scraper => scraper.SourceName, StringComparer.OrdinalIgnoreCase);

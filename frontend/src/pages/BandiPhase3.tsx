@@ -108,6 +108,7 @@ export function BandiPhase3() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [scraping, setScraping] = useState(false);
   const [scrapeResult, setScrapeResult] = useState<BandoScrapeResult | null>(null);
+  const [scrapeScope, setScrapeScope] = useState<'P1' | 'P2' | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [sourceFilter, setSourceFilter] = useState('all');
@@ -242,6 +243,7 @@ export function BandiPhase3() {
   const handleScrape = async () => {
     setScraping(true);
     setWarnings([]);
+    setScrapeScope('P1');
 
     try {
       const result = await castingApi.scrapeBandiP1();
@@ -250,6 +252,23 @@ export function BandiPhase3() {
     } catch (error) {
       setScrapeResult(null);
       setWarnings([error instanceof Error ? error.message : 'Scrape bandi P1 non disponibile']);
+    } finally {
+      setScraping(false);
+    }
+  };
+
+  const handleScrapeP2 = async () => {
+    setScraping(true);
+    setWarnings([]);
+    setScrapeScope('P2');
+
+    try {
+      const result = await castingApi.scrapeBandiP2();
+      setScrapeResult(result);
+      await load();
+    } catch (error) {
+      setScrapeResult(null);
+      setWarnings([error instanceof Error ? error.message : 'Scrape bandi P2 non disponibile']);
     } finally {
       setScraping(false);
     }
@@ -291,23 +310,37 @@ export function BandiPhase3() {
             <div className="flex flex-col items-start gap-3 lg:items-end">
               <div className="rounded-lg border border-[#d4af37]/30 bg-[#d4af37]/10 px-3 py-2 text-right">
                 <p className="text-[10px] uppercase tracking-[0.16em] text-[#d4af37]">Fase corrente</p>
-                <p className="text-sm font-semibold text-[#f3d67a]">3 - Lista e dettaglio</p>
+                <p className="text-sm font-semibold text-[#f3d67a]">5 - Fonti P2</p>
               </div>
 
-              <button
-                type="button"
-                onClick={handleScrape}
-                disabled={scraping}
-                className="rounded-lg border border-[#d4af37]/40 bg-[#d4af37]/10 px-4 py-2 text-sm font-medium text-[#f3d67a] transition hover:bg-[#d4af37]/20 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {scraping ? 'Aggiornamento P1...' : 'Esegui scrape P1'}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleScrape}
+                  disabled={scraping}
+                  className="rounded-lg border border-[#d4af37]/40 bg-[#d4af37]/10 px-4 py-2 text-sm font-medium text-[#f3d67a] transition hover:bg-[#d4af37]/20 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {scraping && scrapeScope === 'P1' ? 'Aggiornamento P1...' : 'Esegui scrape P1'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleScrapeP2}
+                  disabled={scraping}
+                  className="rounded-lg border border-[#7aa7ff]/35 bg-[#0f1a33] px-4 py-2 text-sm font-medium text-[#b7cdff] transition hover:bg-[#132248] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {scraping && scrapeScope === 'P2' ? 'Aggiornamento P2...' : 'Esegui scrape P2'}
+                </button>
+              </div>
             </div>
           </div>
         </section>
 
         {scrapeResult && (
           <section className="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div className="rounded-xl border border-[#1e1e1e] bg-[#141414] p-5">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-[#666]">Ambito</p>
+              <p className="mt-2 text-2xl font-semibold text-[#f5f5f5]">{scrapeScope ?? '-'}</p>
+            </div>
             <div className="rounded-xl border border-[#1e1e1e] bg-[#141414] p-5">
               <p className="text-[10px] uppercase tracking-[0.16em] text-[#666]">Trovati</p>
               <p className="mt-2 text-2xl font-semibold text-[#f5f5f5]">{scrapeResult.totalFound}</p>
@@ -319,10 +352,6 @@ export function BandiPhase3() {
             <div className="rounded-xl border border-[#1e1e1e] bg-[#141414] p-5">
               <p className="text-[10px] uppercase tracking-[0.16em] text-[#666]">Nuovi</p>
               <p className="mt-2 text-2xl font-semibold text-[#f3d67a]">{scrapeResult.totalNew}</p>
-            </div>
-            <div className="rounded-xl border border-[#1e1e1e] bg-[#141414] p-5">
-              <p className="text-[10px] uppercase tracking-[0.16em] text-[#666]">Fonti toccate</p>
-              <p className="mt-2 text-sm font-semibold text-[#f5f5f5]">{scrapeResult.sources.join(', ')}</p>
             </div>
           </section>
         )}
@@ -344,9 +373,9 @@ export function BandiPhase3() {
             <p className="mt-1 text-sm text-[#7f7f7f]">Registry iniziale per fonti P1 e P2.</p>
           </div>
           <div className="rounded-xl border border-[#1e1e1e] bg-[#141414] p-5">
-            <p className="text-[10px] uppercase tracking-[0.16em] text-[#666]">Da rivedere</p>
-            <p className="mt-2 text-2xl font-semibold text-[#f3d67a]">{reviewQueue.length}</p>
-            <p className="mt-1 text-sm text-[#7f7f7f]">Coda manuale per confidenza bassa o dati incompleti.</p>
+            <p className="text-[10px] uppercase tracking-[0.16em] text-[#666]">Fonti P2 coperte</p>
+            <p className="mt-2 text-2xl font-semibold text-[#f3d67a]">6</p>
+            <p className="mt-1 text-sm text-[#7f7f7f]">Scala, Opera Roma, TCBO, San Carlo, Massimo, Stabile Torino.</p>
           </div>
         </section>
 

@@ -32,7 +32,17 @@ public static class BandiEndpoints
 
         group.MapPost("/scrape-p1", async (ScrapeBandiPhaseOneHandler handler, CancellationToken ct) =>
         {
-            var result = await handler.HandleAsync(ct);
+            var result = await handler.HandleAsync(1, 4, ct);
+            return Results.Ok(BandoScrapeResultDto.Create(
+                totalFound: result.TotalFound,
+                totalEligible: result.TotalEligible,
+                totalNew: result.TotalNew,
+                sources: result.Sources));
+        });
+
+        group.MapPost("/scrape-p2", async (ScrapeBandiPhaseOneHandler handler, CancellationToken ct) =>
+        {
+            var result = await handler.HandleAsync(10, 15, ct);
             return Results.Ok(BandoScrapeResultDto.Create(
                 totalFound: result.TotalFound,
                 totalEligible: result.TotalEligible,

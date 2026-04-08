@@ -126,4 +126,8 @@ export const castingApi = {
   scrapeBandiP1(): Promise<BandoScrapeResult> {
     return request<BandoScrapeResult>('/bandi/scrape-p1', { method: 'POST' });
   },
+
+  scrapeBandiP2(): Promise<BandoScrapeResult> {
+    return request<BandoScrapeResult>('/bandi/scrape-p2', { method: 'POST' });
+  },
 };

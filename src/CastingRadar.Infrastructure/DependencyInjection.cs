@@ -67,6 +67,12 @@ public static class DependencyInjection
         services.AddScoped<IBandoScraperStrategy, InpaBandoScraper>();
         services.AddScoped<IBandoScraperStrategy, GazzettaBandoScraper>();
         services.AddScoped<IBandoScraperStrategy, MicSpettacoloBandoScraper>();
+        services.AddScoped<IBandoScraperStrategy, TeatroAllaScalaBandoScraper>();
+        services.AddScoped<IBandoScraperStrategy, OperaRomaBandoScraper>();
+        services.AddScoped<IBandoScraperStrategy, TcboBandoScraper>();
+        services.AddScoped<IBandoScraperStrategy, SanCarloBandoScraper>();
+        services.AddScoped<IBandoScraperStrategy, TeatroMassimoBandoScraper>();
+        services.AddScoped<IBandoScraperStrategy, TeatroStabileTorinoBandoScraper>();
 
         // Scrapers (Italian)
         services.AddScoped<ICastingScraperStrategy, TiconsiglioScraper>();
