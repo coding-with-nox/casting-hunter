@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CastingCall } from '../api/types';
 import { SourceBadge } from './SourceBadge';
 
@@ -20,7 +20,6 @@ export function CastingCard({ casting, onToggleFavorite, onMarkApplied, onUnmark
 
   const isExpired = casting.deadline ? new Date(casting.deadline) < new Date() : false;
 
-  // Close menu on outside click
   useEffect(() => {
     if (!menuOpen) return;
     const handler = (e: MouseEvent) => {
@@ -46,14 +45,47 @@ export function CastingCard({ casting, onToggleFavorite, onMarkApplied, onUnmark
           <button
             onClick={() => onToggleFavorite(casting.id)}
             title={casting.isFavorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}
-            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-[#2a2a2a] ${
+            aria-label={casting.isFavorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}
+            className={`w-7 h-7 flex items-center justify-center rounded-lg text-[0px] transition-colors hover:bg-[#2a2a2a] hover:text-[#d4af37] ${
               casting.isFavorite ? 'text-[#d4af37]' : 'text-[#444]'
             }`}
           >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="w-4 h-4"
+              fill={casting.isFavorite ? 'currentColor' : 'none'}
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 3.5l2.63 5.33 5.87.85-4.25 4.14 1 5.84L12 17l-5.25 2.66 1-5.84-4.25-4.14 5.87-.85L12 3.5z" />
+            </svg>
             ★
           </button>
+          <button
+            onClick={() => onToggleHidden(casting.id)}
+            title="Scarta casting"
+            aria-label="Scarta casting"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-[#444] hover:bg-[#2a2a2a] hover:text-red-400 transition-colors"
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="8" />
+              <path d="M8.5 8.5l7 7" />
+            </svg>
+          </button>
           {/* Menu nascondi/scarta */}
-          <div className="relative" ref={menuRef}>
+          <div className="relative hidden" ref={menuRef}>
             <button
               onClick={() => setMenuOpen(o => !o)}
               title="Opzioni"
