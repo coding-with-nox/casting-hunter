@@ -73,6 +73,7 @@ export interface Bando {
   confidenceScore: number;
   status: string;
   createdAt: string;
+  reviewSignals: string[];
 }
 
 export interface BandoSource {

@@ -60,7 +60,8 @@ const FALLBACK_PLAN: BandiPlan = {
   ],
 };
 
-type SortMode = 'recent' | 'deadline';
+type SortMode = 'recent' | 'deadline' | 'confidence';
+type ConfidenceFilter = 'all' | 'high' | 'medium' | 'low';
 
 function formatDate(value: string | null) {
   if (!value) return 'Non indicata';
@@ -114,6 +115,7 @@ export function BandiPhase3() {
   const [disciplineFilter, setDisciplineFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortMode, setSortMode] = useState<SortMode>('recent');
+  const [confidenceFilter, setConfidenceFilter] = useState<ConfidenceFilter>('all');
   const [onlyPublic, setOnlyPublic] = useState(false);
 
   const load = async () => {
@@ -162,6 +164,9 @@ export function BandiPhase3() {
   const issuerTypeOptions = Array.from(new Set(bandi.map(bando => bando.issuerType))).sort((a, b) => a.localeCompare(b));
   const disciplineOptions = Array.from(new Set(bandi.flatMap(bando => (bando.discipline ? [bando.discipline] : [])))).sort((a, b) => a.localeCompare(b));
   const statusOptions = Array.from(new Set(bandi.map(bando => bando.status))).sort((a, b) => a.localeCompare(b));
+  const reviewQueue = bandi
+    .filter(bando => bando.status === 'Da rivedere')
+    .sort((left, right) => left.confidenceScore - right.confidenceScore);
 
   const filteredBandi = [...bandi]
     .filter(bando => {
@@ -173,10 +178,17 @@ export function BandiPhase3() {
       if (issuerTypeFilter !== 'all' && bando.issuerType !== issuerTypeFilter) return false;
       if (disciplineFilter !== 'all' && bando.discipline !== disciplineFilter) return false;
       if (statusFilter !== 'all' && bando.status !== statusFilter) return false;
+      if (confidenceFilter === 'high' && bando.confidenceScore < 0.85) return false;
+      if (confidenceFilter === 'medium' && (bando.confidenceScore < 0.70 || bando.confidenceScore >= 0.85)) return false;
+      if (confidenceFilter === 'low' && bando.confidenceScore >= 0.70) return false;
       if (onlyPublic && !bando.isPublic) return false;
       return true;
     })
     .sort((left, right) => {
+      if (sortMode === 'confidence') {
+        return left.confidenceScore - right.confidenceScore;
+      }
+
       if (sortMode === 'deadline') {
         const leftDeadline = left.deadline ? new Date(left.deadline).getTime() : Number.MAX_SAFE_INTEGER;
         const rightDeadline = right.deadline ? new Date(right.deadline).getTime() : Number.MAX_SAFE_INTEGER;
@@ -332,14 +344,14 @@ export function BandiPhase3() {
             <p className="mt-1 text-sm text-[#7f7f7f]">Registry iniziale per fonti P1 e P2.</p>
           </div>
           <div className="rounded-xl border border-[#1e1e1e] bg-[#141414] p-5">
-            <p className="text-[10px] uppercase tracking-[0.16em] text-[#666]">Solo pubblici</p>
-            <p className="mt-2 text-2xl font-semibold text-[#f3d67a]">{onlyPublic ? 'SI' : 'NO'}</p>
-            <p className="mt-1 text-sm text-[#7f7f7f]">Filtro rapido su bandi pubblici.</p>
+            <p className="text-[10px] uppercase tracking-[0.16em] text-[#666]">Da rivedere</p>
+            <p className="mt-2 text-2xl font-semibold text-[#f3d67a]">{reviewQueue.length}</p>
+            <p className="mt-1 text-sm text-[#7f7f7f]">Coda manuale per confidenza bassa o dati incompleti.</p>
           </div>
         </section>
 
         <section className="rounded-xl border border-[#1e1e1e] bg-[#141414] p-5">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-7">
             <label className="flex flex-col gap-2">
               <span className="text-[10px] uppercase tracking-[0.16em] text-[#666]">Ricerca</span>
               <input
@@ -415,6 +427,21 @@ export function BandiPhase3() {
               >
                 <option value="recent">Piu recenti</option>
                 <option value="deadline">Scadenza</option>
+                <option value="confidence">Confidenza piu bassa</option>
+              </select>
+            </label>
+
+            <label className="flex flex-col gap-2">
+              <span className="text-[10px] uppercase tracking-[0.16em] text-[#666]">Confidenza</span>
+              <select
+                value={confidenceFilter}
+                onChange={event => setConfidenceFilter(event.target.value as ConfidenceFilter)}
+                className="rounded-lg border border-[#262626] bg-[#101010] px-3 py-2 text-sm text-[#f5f5f5] outline-none focus:border-[#d4af37]/40"
+              >
+                <option value="all">Tutte</option>
+                <option value="high">Alta</option>
+                <option value="medium">Media</option>
+                <option value="low">Bassa</option>
               </select>
             </label>
           </div>
@@ -439,6 +466,7 @@ export function BandiPhase3() {
                 setDisciplineFilter('all');
                 setStatusFilter('all');
                 setSortMode('recent');
+                setConfidenceFilter('all');
                 setOnlyPublic(false);
               }}
               className="rounded-lg border border-[#262626] bg-[#101010] px-3 py-2 text-sm text-[#d0d0d0] transition hover:border-[#d4af37]/40 hover:text-[#f5f5f5]"
@@ -490,6 +518,7 @@ export function BandiPhase3() {
                       <span className={`rounded-md border px-2 py-1 ${getStatusTone(bando.status)}`}>{bando.status}</span>
                       {bando.discipline && <span className="rounded-md border border-sky-900/40 bg-sky-900/20 px-2 py-1 text-sky-200">{bando.discipline}</span>}
                       <span className="rounded-md border border-[#2a2a2a] bg-[#171717] px-2 py-1 text-[#bdbdbd]">{bando.isPublic ? 'Pubblico' : 'Privato'}</span>
+                      <span className="rounded-md border border-[#2a2a2a] bg-[#171717] px-2 py-1 text-[#bdbdbd]">Conf. {bando.confidenceScore.toFixed(2)}</span>
                       {bando.role && <span className="rounded-md border border-[#2a2a2a] bg-[#171717] px-2 py-1 text-[#bdbdbd]">{bando.role}</span>}
                     </div>
                   </button>
@@ -528,6 +557,7 @@ export function BandiPhase3() {
                   {selectedBando.discipline && <span className="rounded-md border border-sky-900/40 bg-sky-900/20 px-2 py-1 text-sky-200">{selectedBando.discipline}</span>}
                   <span className="rounded-md border border-[#2a2a2a] bg-[#171717] px-2 py-1 text-[#c9c9c9]">{selectedBando.issuerType}</span>
                   <span className="rounded-md border border-[#2a2a2a] bg-[#171717] px-2 py-1 text-[#c9c9c9]">{selectedBando.isPublic ? 'Pubblico' : 'Privato'}</span>
+                  <span className="rounded-md border border-[#2a2a2a] bg-[#171717] px-2 py-1 text-[#c9c9c9]">Conf. {selectedBando.confidenceScore.toFixed(2)}</span>
                   {selectedBando.role && <span className="rounded-md border border-[#2a2a2a] bg-[#171717] px-2 py-1 text-[#c9c9c9]">{selectedBando.role}</span>}
                 </div>
 
@@ -546,6 +576,19 @@ export function BandiPhase3() {
                   <p className="text-[10px] uppercase tracking-[0.16em] text-[#666]">Descrizione</p>
                   <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[#d0d0d0]">{selectedBando.bodyText || 'Descrizione non disponibile.'}</p>
                 </div>
+
+                {selectedBando.reviewSignals.length > 0 && (
+                  <div className="rounded-xl border border-amber-800/40 bg-amber-900/20 px-4 py-4">
+                    <p className="text-[10px] uppercase tracking-[0.16em] text-amber-200">Segnali revisione</p>
+                    <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+                      {selectedBando.reviewSignals.map(signal => (
+                        <span key={signal} className="rounded-md border border-amber-800/40 bg-[#1a1405] px-2 py-1 text-amber-100">
+                          {signal}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex flex-wrap gap-3">
                   <a
@@ -605,33 +648,45 @@ export function BandiPhase3() {
 
           <div className="rounded-xl border border-[#1e1e1e] bg-[#141414] p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-[#555]">Supporto roadmap</h3>
-              <p className="text-xs text-[#777]">{plan.status}</p>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-[#555]">Coda Da rivedere</h3>
+              <p className="text-xs text-[#777]">{reviewQueue.length} elementi</p>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="rounded-xl border border-[#222] bg-[#101010] p-4">
-                <p className="mb-3 text-sm font-semibold text-[#f5f5f5]">Come scaricarli</p>
-                <div className="flex flex-col gap-2">
-                  {plan.extractionFlow.map(step => (
-                    <div key={step} className="rounded-lg border border-[#222] bg-[#151515] px-3 py-2 text-sm text-[#cfcfcf]">
-                      {step}
-                    </div>
-                  ))}
-                </div>
+            {reviewQueue.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-[#2a2a2a] bg-[#101010] px-4 py-6">
+                <p className="text-sm font-semibold text-[#f5f5f5]">Coda vuota</p>
+                <p className="mt-2 text-sm text-[#7a7a7a]">Nessun bando richiede revisione manuale al momento.</p>
               </div>
-
-              <div className="rounded-xl border border-[#222] bg-[#101010] p-4">
-                <p className="mb-3 text-sm font-semibold text-[#f5f5f5]">Tipi di ente</p>
-                <div className="flex flex-col gap-2">
-                  {plan.issuerTypes.map(type => (
-                    <div key={type} className="rounded-lg border border-[#222] bg-[#151515] px-3 py-2 text-sm text-[#cfcfcf]">
-                      {type}
+            ) : (
+              <div className="flex flex-col gap-3">
+                {reviewQueue.map(bando => (
+                  <button
+                    key={bando.id}
+                    type="button"
+                    onClick={() => setSelectedBandoId(bando.id)}
+                    className="w-full rounded-xl border border-amber-800/30 bg-[#101010] px-4 py-4 text-left transition hover:border-amber-700/50"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-[#f5f5f5]">{bando.title}</p>
+                        <p className="mt-1 text-xs text-[#8a8a8a]">{bando.issuerName}</p>
+                      </div>
+                      <div className="rounded-lg border border-amber-800/40 bg-amber-900/20 px-3 py-2 text-right">
+                        <p className="text-[10px] uppercase tracking-[0.16em] text-amber-200">Conf.</p>
+                        <p className="mt-1 text-sm font-semibold text-amber-100">{bando.confidenceScore.toFixed(2)}</p>
+                      </div>
                     </div>
-                  ))}
-                </div>
+                    <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+                      {bando.reviewSignals.slice(0, 4).map(signal => (
+                        <span key={signal} className="rounded-md border border-amber-800/40 bg-[#1a1405] px-2 py-1 text-amber-100">
+                          {signal}
+                        </span>
+                      ))}
+                    </div>
+                  </button>
+                ))}
               </div>
-            </div>
+            )}
           </div>
         </section>
       </div>

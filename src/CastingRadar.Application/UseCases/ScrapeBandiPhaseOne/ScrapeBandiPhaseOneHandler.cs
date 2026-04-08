@@ -11,21 +11,76 @@ public class ScrapeBandiPhaseOneHandler(
     IBandoSourceRepository sourceRepository,
     ILogger<ScrapeBandiPhaseOneHandler> logger)
 {
-    private static readonly string[] ArtisticKeywords =
-    [
-        "attore", "attrice", "casting", "audizione", "audizioni", "artista del coro",
-        "coro", "orchestra", "musicista", "cantante", "soprano", "tenore", "baritono",
-        "danza", "danzatore", "danzatrice", "ballerino", "ballerina", "mimo", "regista",
-        "scuola per attori", "selezione artistica", "performer", "maestro collaboratore",
-        "strumentista", "violino", "viola", "violoncello", "contrabbasso", "flauto",
-        "oboe", "clarinetto", "fagotto", "corno", "tromba", "trombone", "arpa", "percussioni"
-    ];
+    private static readonly Dictionary<string, decimal> HighSignalKeywords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["audizione"] = 0.18m,
+        ["audizioni"] = 0.18m,
+        ["casting"] = 0.18m,
+        ["attore"] = 0.18m,
+        ["attrice"] = 0.18m,
+        ["artista del coro"] = 0.20m,
+        ["orchestra"] = 0.18m,
+        ["cantante"] = 0.16m,
+        ["danzatore"] = 0.18m,
+        ["danzatrice"] = 0.18m,
+        ["ballerino"] = 0.16m,
+        ["ballerina"] = 0.16m,
+        ["performer"] = 0.16m,
+        ["maestro collaboratore"] = 0.18m,
+        ["strumentista"] = 0.16m
+    };
 
-    private static readonly string[] ExcludedKeywords =
+    private static readonly Dictionary<string, decimal> MediumSignalKeywords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["coro"] = 0.09m,
+        ["musicista"] = 0.08m,
+        ["soprano"] = 0.08m,
+        ["tenore"] = 0.08m,
+        ["baritono"] = 0.08m,
+        ["danza"] = 0.08m,
+        ["mimo"] = 0.08m,
+        ["regista"] = 0.08m,
+        ["scuola per attori"] = 0.08m,
+        ["selezione artistica"] = 0.08m,
+        ["violino"] = 0.06m,
+        ["viola"] = 0.06m,
+        ["violoncello"] = 0.06m,
+        ["contrabbasso"] = 0.06m,
+        ["flauto"] = 0.06m,
+        ["oboe"] = 0.06m,
+        ["clarinetto"] = 0.06m,
+        ["fagotto"] = 0.06m,
+        ["corno"] = 0.06m,
+        ["tromba"] = 0.06m,
+        ["trombone"] = 0.06m,
+        ["arpa"] = 0.06m,
+        ["percussioni"] = 0.06m,
+        ["teatro"] = 0.06m
+    };
+
+    private static readonly Dictionary<string, decimal> ReviewPenaltyKeywords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["amministrativo"] = 0.22m,
+        ["amministrativa"] = 0.22m,
+        ["contabile"] = 0.20m,
+        ["ragioneria"] = 0.22m,
+        ["biglietteria"] = 0.22m,
+        ["segreteria"] = 0.18m,
+        ["portierato"] = 0.18m,
+        ["custode"] = 0.18m,
+        ["manutenzione"] = 0.18m,
+        ["fonico"] = 0.15m,
+        ["tecnico luci"] = 0.18m,
+        ["macchinista"] = 0.18m,
+        ["sarta"] = 0.14m,
+        ["truccatore"] = 0.14m,
+        ["parrucchiere"] = 0.14m
+    };
+
+    private static readonly string[] HardExcludedKeywords =
     [
-        "amministrativo", "amministrativa", "contabile", "ragioneria", "biglietteria",
-        "fornitura", "forniture", "appalto", "appalti", "ict", "informatico", "developer",
-        "hr", "risorse umane", "segreteria", "portierato", "manutenzione", "custode"
+        "fornitura", "forniture", "appalto", "appalti", "gara", "gare", "ict",
+        "informatico", "developer", "hr", "risorse umane", "software", "sistemista"
     ];
 
     public async Task<BandoScrapeResult> HandleAsync(CancellationToken ct = default)
@@ -55,7 +110,8 @@ public class ScrapeBandiPhaseOneHandler(
 
             foreach (var item in items)
             {
-                if (!IsArtistic(item.Title, item.BodyText))
+                var text = CleanText($"{item.Title} {item.BodyText}");
+                if (!IsArtistic(text))
                 {
                     continue;
                 }
@@ -65,8 +121,8 @@ public class ScrapeBandiPhaseOneHandler(
                 var issuerName = item.IssuerName ?? InferIssuerName(source.Name, item.Title, item.BodyText);
                 var discipline = InferDiscipline(item.Title, item.BodyText);
                 var role = InferRole(item.Title, item.BodyText);
-                var confidenceScore = CalculateConfidence(item.Title, item.BodyText, source);
-                var status = InferStatus(item.Deadline, confidenceScore);
+                var confidenceScore = CalculateConfidence(text, source, role, discipline, item.Deadline);
+                var status = InferStatus(item.Deadline, confidenceScore, role, discipline);
 
                 var bando = Bando.Create(
                     title: CleanText(item.Title),
@@ -98,11 +154,16 @@ public class ScrapeBandiPhaseOneHandler(
         return new BandoScrapeResult(totalFound, totalEligible, totalNew, touchedSources);
     }
 
-    private static bool IsArtistic(string title, string bodyText)
+    private static bool IsArtistic(string text)
     {
-        var text = $"{title} {bodyText}".ToLowerInvariant();
-        return ArtisticKeywords.Any(keyword => text.Contains(keyword))
-            && !ExcludedKeywords.Any(keyword => text.Contains(keyword));
+        var normalized = text.ToLowerInvariant();
+        if (HardExcludedKeywords.Any(keyword => normalized.Contains(keyword)))
+        {
+            return false;
+        }
+
+        var score = GetPositiveSignalScore(normalized) - GetPenaltyScore(normalized);
+        return score >= 0.10m;
     }
 
     private static string InferIssuerType(BandoSource source)
@@ -148,44 +209,62 @@ public class ScrapeBandiPhaseOneHandler(
     private static string? InferRole(string title, string bodyText)
     {
         var text = $"{title} {bodyText}".ToLowerInvariant();
-        var role = ArtisticKeywords.FirstOrDefault(keyword => text.Contains(keyword));
+        var role = HighSignalKeywords.Keys.Concat(MediumSignalKeywords.Keys)
+            .FirstOrDefault(keyword => text.Contains(keyword));
         return role is null ? null : CleanText(role);
     }
 
-    private static decimal CalculateConfidence(string title, string bodyText, BandoSource source)
+    private static decimal CalculateConfidence(
+        string text,
+        BandoSource source,
+        string? role,
+        string? discipline,
+        DateTime? deadline)
     {
-        decimal score = source.IsOfficial ? 0.55m : 0.35m;
-        var text = $"{title} {bodyText}".ToLowerInvariant();
+        decimal score = source.IsOfficial ? 0.48m : 0.30m;
+        var normalized = text.ToLowerInvariant();
 
-        foreach (var keyword in ArtisticKeywords)
-        {
-            if (text.Contains(keyword))
-            {
-                score += 0.08m;
-            }
-        }
+        score += GetPositiveSignalScore(normalized);
+        score -= GetPenaltyScore(normalized);
 
-        if (text.Contains("audizione") || text.Contains("concorso"))
+        if (normalized.Contains("concorso") || normalized.Contains("selezione"))
         {
             score += 0.10m;
         }
 
-        if (ExcludedKeywords.Any(keyword => text.Contains(keyword)))
+        if (role is not null)
         {
-            score -= 0.40m;
+            score += 0.05m;
+        }
+
+        if (discipline is not null && !string.Equals(discipline, "Spettacolo", StringComparison.OrdinalIgnoreCase))
+        {
+            score += 0.04m;
+        }
+
+        if (deadline.HasValue)
+        {
+            score += 0.03m;
+        }
+
+        if (HardExcludedKeywords.Any(keyword => normalized.Contains(keyword)))
+        {
+            score -= 0.60m;
         }
 
         return Math.Clamp(score, 0.05m, 0.99m);
     }
 
-    private static string InferStatus(DateTime? deadline, decimal confidenceScore)
+    private static string InferStatus(DateTime? deadline, decimal confidenceScore, string? role, string? discipline)
     {
         if (deadline.HasValue && deadline.Value.Date < DateTime.UtcNow.Date)
         {
             return "Scaduto";
         }
 
-        if (confidenceScore < 0.70m)
+        if (confidenceScore < 0.78m ||
+            role is null ||
+            string.Equals(discipline, "Spettacolo", StringComparison.OrdinalIgnoreCase))
         {
             return "Da rivedere";
         }
@@ -195,6 +274,44 @@ public class ScrapeBandiPhaseOneHandler(
 
     private static string CleanText(string value) =>
         Regex.Replace(value, @"\s+", " ").Trim();
+
+    private static decimal GetPositiveSignalScore(string text)
+    {
+        decimal score = 0m;
+
+        foreach (var entry in HighSignalKeywords)
+        {
+            if (text.Contains(entry.Key))
+            {
+                score += entry.Value;
+            }
+        }
+
+        foreach (var entry in MediumSignalKeywords)
+        {
+            if (text.Contains(entry.Key))
+            {
+                score += entry.Value;
+            }
+        }
+
+        return score;
+    }
+
+    private static decimal GetPenaltyScore(string text)
+    {
+        decimal score = 0m;
+
+        foreach (var entry in ReviewPenaltyKeywords)
+        {
+            if (text.Contains(entry.Key))
+            {
+                score += entry.Value;
+            }
+        }
+
+        return score;
+    }
 }
 
 public record BandoScrapeResult(

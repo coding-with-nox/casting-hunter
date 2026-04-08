@@ -19,7 +19,8 @@ public record BandoDto(
     bool IsPublic,
     decimal ConfidenceScore,
     string Status,
-    DateTime CreatedAt)
+    DateTime CreatedAt,
+    IReadOnlyList<string> ReviewSignals)
 {
     public static BandoDto FromEntity(Bando b) => new(
         b.Id,
@@ -38,5 +39,48 @@ public record BandoDto(
         b.IsPublic,
         b.ConfidenceScore,
         b.Status,
-        b.CreatedAt);
+        b.CreatedAt,
+        BuildReviewSignals(b));
+
+    private static IReadOnlyList<string> BuildReviewSignals(Bando b)
+    {
+        var signals = new List<string>();
+
+        if (b.Status == "Da rivedere")
+        {
+            signals.Add("Confidenza bassa o classificazione incompleta");
+        }
+
+        if (b.ConfidenceScore < 0.78m)
+        {
+            signals.Add($"Confidenza {b.ConfidenceScore:0.00}");
+        }
+
+        if (string.IsNullOrWhiteSpace(b.Role))
+        {
+            signals.Add("Ruolo non rilevato");
+        }
+
+        if (string.IsNullOrWhiteSpace(b.Discipline) || b.Discipline == "Spettacolo")
+        {
+            signals.Add("Disciplina generica");
+        }
+
+        if (!b.Deadline.HasValue)
+        {
+            signals.Add("Scadenza non indicata");
+        }
+
+        if (string.IsNullOrWhiteSpace(b.Location))
+        {
+            signals.Add("Luogo non indicato");
+        }
+
+        if (b.BodyText.Length < 120)
+        {
+            signals.Add("Descrizione breve");
+        }
+
+        return signals;
+    }
 }
