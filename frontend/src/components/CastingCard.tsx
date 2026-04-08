@@ -139,13 +139,39 @@ export function CastingCard({ casting, onToggleFavorite, onMarkApplied, onUnmark
       </div>
 
       {/* Info */}
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-2">
+        <div className={`rounded-lg border px-3 py-2 ${
+          deadline
+            ? isExpired
+              ? 'border-red-800/60 bg-red-950/30'
+              : 'border-[#d4af37]/40 bg-[#d4af37]/10'
+            : 'border-[#333] bg-[#252525]'
+        }`}>
+          <p className={`text-[10px] uppercase tracking-[0.16em] ${
+            deadline
+              ? isExpired
+                ? 'text-red-300'
+                : 'text-[#d4af37]'
+              : 'text-[#888]'
+          }`}>
+            {deadline && isExpired ? 'Scaduto' : 'Scadenza'}
+          </p>
+          <p className={`text-sm font-semibold ${
+            deadline
+              ? isExpired
+                ? 'text-red-400'
+                : 'text-[#f3d67a]'
+              : 'text-[#ddd]'
+          }`}>
+            {deadline ?? 'Non indicata'}
+          </p>
+        </div>
         {casting.location && (
           <p className="text-xs text-[#777] flex items-center gap-1">
             <span>📍</span> {casting.location}
           </p>
         )}
-        {deadline && (
+        {false && (
           <p className={`text-xs flex items-center gap-1 ${isExpired ? 'text-red-500' : 'text-[#777]'}`}>
             <span>⏰</span>
             {isExpired ? 'Scaduto: ' : 'Scadenza: '}

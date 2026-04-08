@@ -2,10 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { castingApi } from '../api/castingApi';
 import type { CastingCall, FilterState } from '../api/types';
 
+const CASTING_CALLS_SYNC_EVENT = 'castingradar:calls-sync';
+
 export function useCastingCalls(filter?: FilterState) {
   const [calls, setCalls] = useState<CastingCall[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const filterKey = JSON.stringify(filter ?? {});
 
   const fetchCalls = useCallback(async () => {
     setLoading(true);
@@ -18,29 +21,43 @@ export function useCastingCalls(filter?: FilterState) {
     } finally {
       setLoading(false);
     }
-  }, [JSON.stringify(filter)]);
+  }, [filterKey]);
 
   useEffect(() => { fetchCalls(); }, [fetchCalls]);
 
+  useEffect(() => {
+    const handleSync = () => { void fetchCalls(); };
+    window.addEventListener(CASTING_CALLS_SYNC_EVENT, handleSync);
+    return () => window.removeEventListener(CASTING_CALLS_SYNC_EVENT, handleSync);
+  }, [fetchCalls]);
+
+  const syncCalls = useCallback(() => {
+    window.dispatchEvent(new Event(CASTING_CALLS_SYNC_EVENT));
+  }, []);
+
   const toggleFavorite = useCallback(async (id: string) => {
     await castingApi.toggleFavorite(id);
-    setCalls(prev => prev.map(c => c.id === id ? { ...c, isFavorite: !c.isFavorite } : c));
-  }, []);
+    await fetchCalls();
+    syncCalls();
+  }, [fetchCalls, syncCalls]);
 
   const markApplied = useCallback(async (id: string) => {
     await castingApi.markApplied(id);
-    setCalls(prev => prev.map(c => c.id === id ? { ...c, isApplied: true } : c));
-  }, []);
+    await fetchCalls();
+    syncCalls();
+  }, [fetchCalls, syncCalls]);
 
   const unmarkApplied = useCallback(async (id: string) => {
     await castingApi.unmarkApplied(id);
-    setCalls(prev => prev.map(c => c.id === id ? { ...c, isApplied: false } : c));
-  }, []);
+    await fetchCalls();
+    syncCalls();
+  }, [fetchCalls, syncCalls]);
 
   const toggleHidden = useCallback(async (id: string) => {
     await castingApi.toggleHidden(id);
-    setCalls(prev => prev.map(c => c.id === id ? { ...c, isHidden: !c.isHidden } : c).filter(c => !c.isHidden));
-  }, []);
+    await fetchCalls();
+    syncCalls();
+  }, [fetchCalls, syncCalls]);
 
   return { calls, loading, error, refetch: fetchCalls, toggleFavorite, markApplied, unmarkApplied, toggleHidden };
 }
