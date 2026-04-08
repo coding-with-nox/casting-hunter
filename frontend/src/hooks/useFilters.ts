@@ -14,7 +14,8 @@ export function useFilters(initial?: FilterState) {
     return { ...f, regions: regions.includes(region) ? regions.filter(r => r !== region) : [...regions, region] };
   });
   const setOnlyPaid = (onlyPaid: boolean) => setFilter(f => ({ ...f, onlyPaid }));
+  const toggleShowHidden = () => setFilter(f => ({ ...f, showHidden: !f.showHidden }));
   const reset = () => setFilter({});
 
-  return { filter, setKeywords, toggleType, toggleRegion, setOnlyPaid, reset };
+  return { filter, setKeywords, toggleType, toggleRegion, setOnlyPaid, toggleShowHidden, reset };
 }

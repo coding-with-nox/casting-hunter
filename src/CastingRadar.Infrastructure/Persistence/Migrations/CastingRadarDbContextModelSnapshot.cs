@@ -48,6 +48,9 @@ namespace CastingRadar.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsFavorite")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsHidden")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsPaid")
                         .HasColumnType("boolean");
 

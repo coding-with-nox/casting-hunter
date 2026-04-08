@@ -8,7 +8,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     ...options,
   });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-  return res.json() as Promise<T>;
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 export const castingApi = {
@@ -19,6 +20,7 @@ export const castingApi = {
     if (filter?.regions?.length) params.set('regions', filter.regions.join(','));
     if (filter?.onlyPaid) params.set('onlyPaid', 'true');
     if (filter?.gender) params.set('gender', filter.gender);
+    if (filter?.showHidden) params.set('showHidden', 'true');
     const qs = params.toString();
     return request<CastingCall[]>(`/castings${qs ? `?${qs}` : ''}`);
   },
@@ -39,12 +41,20 @@ export const castingApi = {
     return request<void>(`/castings/${id}/applied`, { method: 'DELETE' });
   },
 
+  toggleHidden(id: string): Promise<void> {
+    return request<void>(`/castings/${id}/hidden`, { method: 'POST' });
+  },
+
   getSources(): Promise<SourceStatus[]> {
     return request<SourceStatus[]>('/sources');
   },
 
   toggleSourceEnabled(name: string, enabled: boolean): Promise<void> {
     return request<void>(`/sources/${encodeURIComponent(name)}/enabled?enabled=${enabled}`, { method: 'PATCH' });
+  },
+
+  deleteSource(name: string): Promise<void> {
+    return request<void>(`/sources/${encodeURIComponent(name)}`, { method: 'DELETE' });
   },
 
   createSource(name: string, url: string, region: string): Promise<SourceStatus> {

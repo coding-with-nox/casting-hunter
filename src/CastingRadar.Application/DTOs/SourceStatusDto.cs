@@ -9,11 +9,12 @@ public record SourceStatusDto(
     string? Url,
     bool IsEnabled,
     DateTime? LastScrapedAt,
-    int ErrorCount)
+    int ErrorCount,
+    bool HasCustomScraper)
 {
-    public static SourceStatusDto FromEntity(Source s) =>
-        new(s.Name, s.Region, s.Url, s.IsEnabled, s.LastScrapedAt, s.ErrorCount);
+    public static SourceStatusDto FromEntity(Source s, bool hasCustomScraper = false) =>
+        new(s.Name, s.Region, s.Url, s.IsEnabled, s.LastScrapedAt, s.ErrorCount, hasCustomScraper);
 
     public static SourceStatusDto FromScraper(string name, SourceRegion region) =>
-        new(name, region, null, true, null, 0);
+        new(name, region, null, true, null, 0, true);
 }

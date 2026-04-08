@@ -18,6 +18,16 @@ public class SourceRepository(CastingRadarDbContext db) : ISourceRepository
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task DeleteAsync(string name, CancellationToken ct = default)
+    {
+        var source = await db.Sources.FirstOrDefaultAsync(s => s.Name == name, ct);
+        if (source is not null)
+        {
+            db.Sources.Remove(source);
+            await db.SaveChangesAsync(ct);
+        }
+    }
+
     public async Task UpdateAsync(Source source, CancellationToken ct = default)
     {
         db.Sources.Update(source);

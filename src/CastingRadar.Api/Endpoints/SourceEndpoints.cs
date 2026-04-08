@@ -22,9 +22,9 @@ public static class SourceEndpoints
         {
             var dbSources = (await repo.GetAllAsync(ct)).ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
 
-            // Registered scrapers — use DB record if available, otherwise default
+            // Registered scrapers — use DB record if available (mark as hasCustomScraper=true)
             var result = scrapers.Select(s => dbSources.TryGetValue(s.SourceName, out var db)
-                ? SourceStatusDto.FromEntity(db)
+                ? SourceStatusDto.FromEntity(db, hasCustomScraper: true)
                 : SourceStatusDto.FromScraper(s.SourceName, s.Region)).ToList();
 
             // Generic DB-only sources (no registered scraper)
@@ -59,6 +59,18 @@ public static class SourceEndpoints
             var source = Source.Create(req.Name, region, req.Url);
             await repo.AddAsync(source, ct);
             return Results.Created($"/api/sources/{Uri.EscapeDataString(req.Name)}", SourceStatusDto.FromEntity(source));
+        });
+
+        group.MapDelete("/{name}", async (
+            string name,
+            ISourceRepository repo,
+            IEnumerable<ICastingScraperStrategy> scrapers,
+            CancellationToken ct) =>
+        {
+            if (scrapers.Any(s => s.SourceName.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                return Results.BadRequest("I siti integrati non possono essere eliminati, solo disattivati.");
+            await repo.DeleteAsync(name, ct);
+            return Results.NoContent();
         });
 
         group.MapPatch("/{name}/enabled", async (

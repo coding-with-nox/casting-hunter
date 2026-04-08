@@ -19,11 +19,12 @@ public record CastingCallDto(
     string? Requirements,
     bool IsFavorite,
     bool IsApplied,
+    bool IsHidden,
     DateTime ScrapedAt)
 {
     public static CastingCallDto FromEntity(CastingCall c) => new(
         c.Id, c.Title, c.Description, c.SourceUrl, c.SourceName,
         c.Type, c.Region, c.Location, c.Deadline, c.IsPaid,
         c.RequiredGender, c.AgeRange, c.Requirements,
-        c.IsFavorite, c.IsApplied, c.ScrapedAt);
+        c.IsFavorite, c.IsApplied, c.IsHidden, c.ScrapedAt);
 }

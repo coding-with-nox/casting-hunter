@@ -2,78 +2,67 @@ import { CastingCard } from '../components/CastingCard';
 import { FilterPanel } from '../components/FilterPanel';
 import { useFilters } from '../hooks/useFilters';
 import { useCastingCalls } from '../hooks/useCastingCalls';
-import { castingApi } from '../api/castingApi';
-import { useState } from 'react';
 
 export function Dashboard() {
-  const { filter, setKeywords, toggleType, toggleRegion, reset } = useFilters();
-  const { calls, loading, error, refetch, toggleFavorite, markApplied, unmarkApplied } = useCastingCalls(filter);
-  const [scraping, setScraping] = useState(false);
+  const { filter, setKeywords, toggleType, toggleRegion, toggleShowHidden, reset } = useFilters();
+  const { calls, loading, error, toggleFavorite, markApplied, unmarkApplied, toggleHidden } = useCastingCalls(filter);
 
-  const handleScrapeAll = async () => {
-    setScraping(true);
-    try {
-      await castingApi.scrapeAll();
-      await refetch();
-    } finally {
-      setScraping(false);
-    }
-  };
+  const visibleCount = calls.length;
 
   return (
-    <div className="min-h-screen bg-[#0f0f0f] flex flex-col">
-      <header className="border-b border-[#2a2a2a] px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">🎬</span>
-          <h1 className="text-xl font-bold text-[#f5f5f5]">CastingRadar</h1>
-        </div>
-        <button
-          onClick={handleScrapeAll}
-          disabled={scraping}
-          className="text-sm px-4 py-2 rounded-lg bg-[#1e1e1e] border border-[#2a2a2a] text-[#9ca3af] hover:border-[#d4af37]/50 hover:text-[#d4af37] transition-colors disabled:opacity-50"
-        >
-          {scraping ? '⟳ Scraping...' : '⟳ Aggiorna ora'}
-        </button>
-      </header>
-
-      <div className="flex gap-6 p-6 flex-1">
+    <div className="flex h-full">
+      {/* Sidebar filtri */}
+      <aside className="w-56 flex-shrink-0 border-r border-[#1e1e1e] p-4 flex flex-col gap-4 overflow-y-auto">
         <FilterPanel
           keywords={filter.keywords ?? ''}
           selectedTypes={filter.types ?? []}
           selectedRegions={filter.regions ?? []}
+          showHidden={filter.showHidden ?? false}
           onKeywordsChange={setKeywords}
           onToggleType={toggleType}
           onToggleRegion={toggleRegion}
+          onToggleShowHidden={toggleShowHidden}
           onReset={reset}
         />
+      </aside>
 
-        <main className="flex-1">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-[#9ca3af]">
-              {loading ? 'Caricamento...' : `${calls.length} casting trovati`}
-            </p>
-          </div>
+      {/* Contenuto principale */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        <div className="px-5 py-3 border-b border-[#1e1e1e] flex items-center justify-between">
+          <p className="text-sm text-[#555]">
+            {loading
+              ? 'Caricamento...'
+              : filter.showHidden
+              ? `${visibleCount} casting nascosti`
+              : `${visibleCount} casting disponibili`}
+          </p>
+        </div>
 
+        <div className="p-5 flex-1">
           {error && (
-            <div className="bg-red-900/20 border border-red-800 rounded-lg p-4 text-red-400 text-sm mb-4">
-              Errore: {error}
+            <div className="bg-red-900/20 border border-red-800/50 rounded-lg p-3 text-red-400 text-sm mb-4">
+              {error}
             </div>
           )}
 
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-xl p-4 h-48 animate-pulse" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-xl p-4 h-44 animate-pulse" />
               ))}
             </div>
           ) : calls.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 text-[#555]">
+            <div className="flex flex-col items-center justify-center py-32 text-[#444]">
               <span className="text-5xl mb-4">🎭</span>
-              <p className="text-lg">Nessun casting trovato</p>
-              <p className="text-sm mt-1">Modifica i filtri o aggiorna le fonti</p>
+              <p className="text-base font-medium text-[#666]">
+                {filter.showHidden ? 'Nessun casting nascosto' : 'Nessun casting trovato'}
+              </p>
+              <p className="text-sm mt-1">
+                {filter.showHidden ? '' : 'Prova ad aggiornare le fonti o cambiare i filtri'}
+              </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {calls.map(c => (
                 <CastingCard
                   key={c.id}
@@ -81,12 +70,13 @@ export function Dashboard() {
                   onToggleFavorite={toggleFavorite}
                   onMarkApplied={markApplied}
                   onUnmarkApplied={unmarkApplied}
+                  onToggleHidden={toggleHidden}
                 />
               ))}
             </div>
           )}
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

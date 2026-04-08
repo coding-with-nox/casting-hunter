@@ -9,7 +9,8 @@ public record ScraperFilter(
     bool OnlyPaid,
     string? GenderFilter,
     int? MinAge,
-    int? MaxAge)
+    int? MaxAge,
+    bool ShowHidden = false)
 {
     public static ScraperFilter Default => new(
         Keywords: null,

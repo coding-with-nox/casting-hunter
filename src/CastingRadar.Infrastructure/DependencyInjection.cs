@@ -2,6 +2,7 @@ using CastingRadar.Application.Interfaces;
 using CastingRadar.Application.UseCases.GetCastingCalls;
 using CastingRadar.Application.UseCases.MarkAsApplied;
 using CastingRadar.Application.UseCases.MarkAsFavorite;
+using CastingRadar.Application.UseCases.ToggleHidden;
 using CastingRadar.Application.UseCases.ScrapeAllSources;
 using CastingRadar.Application.UseCases.UpdateUserProfile;
 using CastingRadar.Infrastructure.Http;
@@ -75,6 +76,7 @@ public static class DependencyInjection
         services.AddScoped<MarkAsFavoriteHandler>();
         services.AddScoped<MarkAsAppliedHandler>();
         services.AddScoped<UnmarkAsAppliedHandler>();
+        services.AddScoped<ToggleHiddenHandler>();
         services.AddScoped<UpdateUserProfileHandler>();
 
         return services;

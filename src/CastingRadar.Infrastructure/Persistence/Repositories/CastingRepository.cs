@@ -12,6 +12,10 @@ public class CastingRepository(CastingRadarDbContext db) : ICastingRepository
     {
         var query = db.CastingCalls.AsQueryable();
 
+        // Always exclude hidden unless explicitly requested
+        if (filter is null || !filter.ShowHidden)
+            query = query.Where(c => !c.IsHidden);
+
         if (filter is not null)
         {
             if (filter.Types is { Length: > 0 })

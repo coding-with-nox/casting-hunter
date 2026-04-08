@@ -9,4 +9,5 @@ public interface ISourceRepository
     Task AddAsync(Source source, CancellationToken ct = default);
     Task UpsertAsync(Source source, CancellationToken ct = default);
     Task UpdateAsync(Source source, CancellationToken ct = default);
+    Task DeleteAsync(string name, CancellationToken ct = default);
 }

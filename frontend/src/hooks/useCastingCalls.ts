@@ -37,5 +37,10 @@ export function useCastingCalls(filter?: FilterState) {
     setCalls(prev => prev.map(c => c.id === id ? { ...c, isApplied: false } : c));
   }, []);
 
-  return { calls, loading, error, refetch: fetchCalls, toggleFavorite, markApplied, unmarkApplied };
+  const toggleHidden = useCallback(async (id: string) => {
+    await castingApi.toggleHidden(id);
+    setCalls(prev => prev.map(c => c.id === id ? { ...c, isHidden: !c.isHidden } : c).filter(c => !c.isHidden));
+  }, []);
+
+  return { calls, loading, error, refetch: fetchCalls, toggleFavorite, markApplied, unmarkApplied, toggleHidden };
 }

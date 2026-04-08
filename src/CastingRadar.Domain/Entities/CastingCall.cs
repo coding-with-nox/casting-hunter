@@ -21,6 +21,7 @@ public class CastingCall
     public string? Requirements { get; private set; }
     public bool IsFavorite { get; private set; }
     public bool IsApplied { get; private set; }
+    public bool IsHidden { get; private set; }
     public DateTime ScrapedAt { get; private set; }
     public string ContentHash { get; private set; } = string.Empty;
 
@@ -67,6 +68,7 @@ public class CastingCall
 
     public void MarkAsApplied() => IsApplied = true;
     public void UnmarkAsApplied() => IsApplied = false;
+    public void ToggleHidden() => IsHidden = !IsHidden;
 
     public static string ComputeHash(string title, string sourceUrl)
     {

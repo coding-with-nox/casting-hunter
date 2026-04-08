@@ -7,8 +7,10 @@ export function Settings() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [form, setForm] = useState({ gender: 'female', scenicAge: '', telegramChatId: '' });
+
   const [sources, setSources] = useState<SourceStatus[]>([]);
   const [togglingSource, setTogglingSource] = useState<string | null>(null);
+  const [deletingSource, setDeletingSource] = useState<string | null>(null);
   const [newSource, setNewSource] = useState({ name: '', url: '', region: 'Italy' });
   const [addingSource, setAddingSource] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -16,14 +18,25 @@ export function Settings() {
   useEffect(() => {
     castingApi.getProfile().then(p => {
       setProfile(p);
-      setForm({
-        gender: p.gender,
-        scenicAge: p.scenicAge?.toString() ?? '',
-        telegramChatId: p.telegramChatId ?? '',
-      });
+      setForm({ gender: p.gender, scenicAge: p.scenicAge?.toString() ?? '', telegramChatId: p.telegramChatId ?? '' });
     });
     castingApi.getSources().then(setSources);
   }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await castingApi.updateProfile({
+        gender: form.gender,
+        scenicAge: form.scenicAge ? parseInt(form.scenicAge) : undefined,
+        telegramChatId: form.telegramChatId || undefined,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleToggleSource = async (name: string, enabled: boolean) => {
     setTogglingSource(name);
@@ -32,6 +45,19 @@ export function Settings() {
       setSources(prev => prev.map(s => s.name === name ? { ...s, isEnabled: enabled } : s));
     } finally {
       setTogglingSource(null);
+    }
+  };
+
+  const handleDeleteSource = async (name: string) => {
+    if (!confirm(`Eliminare il sito "${name}"?`)) return;
+    setDeletingSource(name);
+    try {
+      await castingApi.deleteSource(name);
+      setSources(prev => prev.filter(s => s.name !== name));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Errore durante l\'eliminazione');
+    } finally {
+      setDeletingSource(null);
     }
   };
 
@@ -49,34 +75,25 @@ export function Settings() {
     }
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      await castingApi.updateProfile({
-        gender: form.gender,
-        scenicAge: form.scenicAge ? parseInt(form.scenicAge) : undefined,
-        telegramChatId: form.telegramChatId || undefined,
-      });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } finally {
-      setSaving(false);
-    }
-  };
+  if (!profile) return <div className="p-8 text-[#555]">Caricamento...</div>;
 
-  if (!profile) return <div className="p-8 text-[#9ca3af]">Caricamento...</div>;
+  const builtInSources = sources.filter(s => s.hasCustomScraper);
+  const customSources = sources.filter(s => !s.hasCustomScraper);
 
   return (
-    <div className="p-6 max-w-lg">
-      <h2 className="text-xl font-bold text-[#f5f5f5] mb-6">⚙️ Impostazioni</h2>
+    <div className="p-6 max-w-2xl overflow-y-auto h-full">
+      <h2 className="text-lg font-bold text-[#f5f5f5] mb-5">Impostazioni</h2>
 
-      <div className="flex flex-col gap-5 bg-[#1e1e1e] border border-[#2a2a2a] rounded-xl p-5">
+      {/* Profilo */}
+      <section className="flex flex-col gap-4 bg-[#141414] border border-[#1e1e1e] rounded-xl p-5 mb-5">
+        <h3 className="text-xs font-semibold text-[#555] uppercase tracking-wider">Il tuo profilo</h3>
+
         <div>
-          <label className="block text-xs font-semibold text-[#9ca3af] uppercase tracking-wide mb-1.5">Genere</label>
+          <label className="block text-xs text-[#666] mb-1">Genere</label>
           <select
             value={form.gender}
             onChange={e => setForm(f => ({ ...f, gender: e.target.value }))}
-            className="w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-lg px-3 py-2 text-sm text-[#f5f5f5] focus:outline-none focus:border-[#d4af37]/50"
+            className="w-full bg-[#0f0f0f] border border-[#252525] rounded-lg px-3 py-2 text-sm text-[#f5f5f5] focus:outline-none focus:border-[#d4af37]/40"
           >
             <option value="female">Donna</option>
             <option value="male">Uomo</option>
@@ -85,110 +102,173 @@ export function Settings() {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-[#9ca3af] uppercase tracking-wide mb-1.5">Età scenica</label>
+          <label className="block text-xs text-[#666] mb-1">Età scenica</label>
           <input
             type="number"
             value={form.scenicAge}
             onChange={e => setForm(f => ({ ...f, scenicAge: e.target.value }))}
             placeholder="Es. 30"
             min={18} max={80}
-            className="w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-lg px-3 py-2 text-sm text-[#f5f5f5] placeholder-[#555] focus:outline-none focus:border-[#d4af37]/50"
+            className="w-full bg-[#0f0f0f] border border-[#252525] rounded-lg px-3 py-2 text-sm text-[#f5f5f5] placeholder-[#444] focus:outline-none focus:border-[#d4af37]/40"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-[#9ca3af] uppercase tracking-wide mb-1.5">
-            Telegram Chat ID
-          </label>
+          <label className="block text-xs text-[#666] mb-1">Telegram Chat ID</label>
           <input
             type="text"
             value={form.telegramChatId}
             onChange={e => setForm(f => ({ ...f, telegramChatId: e.target.value }))}
             placeholder="Es. 123456789"
-            className="w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-lg px-3 py-2 text-sm text-[#f5f5f5] placeholder-[#555] focus:outline-none focus:border-[#d4af37]/50"
+            className="w-full bg-[#0f0f0f] border border-[#252525] rounded-lg px-3 py-2 text-sm text-[#f5f5f5] placeholder-[#444] focus:outline-none focus:border-[#d4af37]/40"
           />
-          <p className="text-xs text-[#555] mt-1">Ottieni il tuo Chat ID con @userinfobot su Telegram</p>
+          <p className="text-xs text-[#444] mt-1">Ricevi notifiche su Telegram. Ottieni l'ID con @userinfobot</p>
         </div>
 
         <button
           onClick={handleSave}
           disabled={saving}
-          className="py-2 px-4 rounded-lg bg-[#d4af37] text-black font-medium hover:bg-[#b8962c] transition-colors disabled:opacity-50"
+          className="py-2 px-4 rounded-lg bg-[#d4af37] text-black text-sm font-semibold hover:bg-[#b8962c] transition-colors disabled:opacity-50"
         >
-          {saved ? '✓ Salvato' : saving ? 'Salvataggio...' : 'Salva impostazioni'}
+          {saved ? '✓ Salvato' : saving ? 'Salvataggio...' : 'Salva'}
         </button>
-      </div>
+      </section>
 
-      <div className="mt-6 flex flex-col gap-4 bg-[#1e1e1e] border border-[#2a2a2a] rounded-xl p-5">
-        <h3 className="text-sm font-semibold text-[#9ca3af] uppercase tracking-wide">Siti da cercare</h3>
+      {/* Siti integrati */}
+      <section className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-5 mb-5">
+        <h3 className="text-xs font-semibold text-[#555] uppercase tracking-wider mb-1">Siti integrati</h3>
+        <p className="text-xs text-[#444] mb-4">Questi siti hanno uno scraper dedicato e funzionano al meglio.</p>
 
-        {sources.map(s => (
-          <div key={s.name} className="flex items-center justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-[#f5f5f5]">{s.name}</span>
-                <span className="text-xs text-[#555]">{s.region}</span>
+        <div className="flex flex-col gap-3">
+          {builtInSources.map(s => (
+            <div key={s.name} className="flex items-center justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-[#d5d5d5]">{s.name}</span>
+                  <span className="text-xs text-[#3a7b47] bg-[#1a3a22] px-1.5 py-0.5 rounded">✓ Integrato</span>
+                </div>
+                {s.lastScrapedAt && (
+                  <p className="text-xs text-[#444] mt-0.5">
+                    Ultimo aggiornamento: {new Date(s.lastScrapedAt).toLocaleDateString('it-IT')}
+                  </p>
+                )}
               </div>
-              {s.url && (
-                <a
-                  href={s.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-[#555] hover:text-[#d4af37] truncate block"
-                >
-                  {s.url}
-                </a>
-              )}
+              <Toggle
+                enabled={s.isEnabled}
+                loading={togglingSource === s.name}
+                onChange={v => handleToggleSource(s.name, v)}
+              />
             </div>
-            <button
-              onClick={() => handleToggleSource(s.name, !s.isEnabled)}
-              disabled={togglingSource === s.name}
-              className={`flex-shrink-0 relative w-10 h-5 rounded-full transition-colors disabled:opacity-50 ${
-                s.isEnabled ? 'bg-[#d4af37]' : 'bg-[#2a2a2a]'
-              }`}
-            >
-              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
-                s.isEnabled ? 'translate-x-5' : 'translate-x-0'
-              }`} />
-            </button>
-          </div>
-        ))}
+          ))}
+          {builtInSources.length === 0 && (
+            <p className="text-xs text-[#444]">Nessun sito integrato disponibile.</p>
+          )}
+        </div>
+      </section>
 
-        <div className="border-t border-[#2a2a2a] pt-4 flex flex-col gap-2">
-          <p className="text-xs font-semibold text-[#9ca3af] uppercase tracking-wide">Aggiungi sito</p>
+      {/* Siti personalizzati */}
+      <section className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-5">
+        <h3 className="text-xs font-semibold text-[#555] uppercase tracking-wider mb-1">Siti personalizzati</h3>
+        <p className="text-xs text-[#444] mb-4">
+          Siti aggiunti manualmente. I risultati potrebbero essere incompleti poiché non hanno uno scraper dedicato.
+        </p>
+
+        <div className="flex flex-col gap-3 mb-4">
+          {customSources.map(s => (
+            <div key={s.name} className="flex items-start gap-3 p-3 bg-[#0f0f0f] rounded-lg border border-[#1e1e1e]">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm text-[#d5d5d5]">{s.name}</span>
+                  <span className="text-xs text-[#7a6020] bg-[#2a2010] px-1.5 py-0.5 rounded">⚠ Generico</span>
+                </div>
+                {s.url && (
+                  <a
+                    href={s.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-[#444] hover:text-[#d4af37] truncate block mt-0.5"
+                  >
+                    {s.url}
+                  </a>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Toggle
+                  enabled={s.isEnabled}
+                  loading={togglingSource === s.name}
+                  onChange={v => handleToggleSource(s.name, v)}
+                />
+                <button
+                  onClick={() => handleDeleteSource(s.name)}
+                  disabled={deletingSource === s.name}
+                  className="text-xs text-[#444] hover:text-red-400 transition-colors p-1 disabled:opacity-50"
+                  title="Elimina sito"
+                >
+                  🗑
+                </button>
+              </div>
+            </div>
+          ))}
+          {customSources.length === 0 && (
+            <p className="text-xs text-[#444]">Nessun sito personalizzato aggiunto.</p>
+          )}
+        </div>
+
+        {/* Form aggiunta */}
+        <div className="border-t border-[#1e1e1e] pt-4 flex flex-col gap-2">
+          <p className="text-xs font-semibold text-[#555] uppercase tracking-wider">Aggiungi un sito</p>
           <input
             type="text"
-            placeholder="Nome (es. MyCasting)"
+            placeholder="Nome del sito (es. MyCasting)"
             value={newSource.name}
             onChange={e => setNewSource(s => ({ ...s, name: e.target.value }))}
-            className="w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-lg px-3 py-2 text-sm text-[#f5f5f5] placeholder-[#555] focus:outline-none focus:border-[#d4af37]/50"
+            className="w-full bg-[#0f0f0f] border border-[#252525] rounded-lg px-3 py-2 text-sm text-[#f5f5f5] placeholder-[#444] focus:outline-none focus:border-[#d4af37]/40"
           />
           <input
             type="url"
-            placeholder="URL (es. https://www.mycasting.it/casting)"
+            placeholder="URL pagina casting (es. https://sito.it/casting)"
             value={newSource.url}
             onChange={e => setNewSource(s => ({ ...s, url: e.target.value }))}
-            className="w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-lg px-3 py-2 text-sm text-[#f5f5f5] placeholder-[#555] focus:outline-none focus:border-[#d4af37]/50"
+            className="w-full bg-[#0f0f0f] border border-[#252525] rounded-lg px-3 py-2 text-sm text-[#f5f5f5] placeholder-[#444] focus:outline-none focus:border-[#d4af37]/40"
           />
           <select
             value={newSource.region}
             onChange={e => setNewSource(s => ({ ...s, region: e.target.value }))}
-            className="w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-lg px-3 py-2 text-sm text-[#f5f5f5] focus:outline-none focus:border-[#d4af37]/50"
+            className="w-full bg-[#0f0f0f] border border-[#252525] rounded-lg px-3 py-2 text-sm text-[#f5f5f5] focus:outline-none focus:border-[#d4af37]/40"
           >
-            <option value="Italy">Italy</option>
-            <option value="Europe">Europe</option>
-            <option value="International">International</option>
+            <option value="Italy">🇮🇹 Italia</option>
+            <option value="Europe">🇪🇺 Europa</option>
+            <option value="International">🌍 Internazionale</option>
           </select>
           {addError && <p className="text-xs text-red-400">{addError}</p>}
           <button
             onClick={handleAddSource}
-            disabled={addingSource || !newSource.name || !newSource.url}
-            className="py-2 px-4 rounded-lg border border-[#d4af37]/40 text-[#d4af37] text-sm font-medium hover:bg-[#d4af37]/10 transition-colors disabled:opacity-50"
+            disabled={addingSource || !newSource.name.trim() || !newSource.url.trim()}
+            className="py-2 px-4 rounded-lg border border-[#d4af37]/30 text-[#d4af37] text-sm font-medium hover:bg-[#d4af37]/10 transition-colors disabled:opacity-50"
           >
             {addingSource ? 'Aggiunta...' : '+ Aggiungi sito'}
           </button>
+          <p className="text-xs text-[#3a3a3a]">
+            ⚠ I siti aggiunti manualmente usano uno scraper generico. Per risultati migliori, richiedi uno scraper dedicato allo sviluppatore.
+          </p>
         </div>
-      </div>
+      </section>
     </div>
+  );
+}
+
+function Toggle({ enabled, loading, onChange }: { enabled: boolean; loading: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      onClick={() => onChange(!enabled)}
+      disabled={loading}
+      className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 disabled:opacity-50 ${
+        enabled ? 'bg-[#d4af37]' : 'bg-[#252525]'
+      }`}
+    >
+      <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+        enabled ? 'translate-x-4' : 'translate-x-0'
+      }`} />
+    </button>
   );
 }

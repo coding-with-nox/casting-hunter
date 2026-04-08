@@ -3,7 +3,7 @@ using CastingRadar.Application.Interfaces;
 using CastingRadar.Application.UseCases.GetCastingCalls;
 using CastingRadar.Application.UseCases.MarkAsApplied;
 using CastingRadar.Application.UseCases.MarkAsFavorite;
-using Microsoft.AspNetCore.Http;
+using CastingRadar.Application.UseCases.ToggleHidden;
 using CastingRadar.Domain.Enums;
 using CastingRadar.Domain.ValueObjects;
 using Microsoft.AspNetCore.Mvc;
@@ -22,6 +22,7 @@ public static class CastingEndpoints
             [FromQuery] string? regions,
             [FromQuery] bool? onlyPaid,
             [FromQuery] string? gender,
+            [FromQuery] bool? showHidden,
             GetCastingCallsHandler handler,
             CancellationToken ct) =>
         {
@@ -50,7 +51,8 @@ public static class CastingEndpoints
                 OnlyPaid: onlyPaid ?? false,
                 GenderFilter: safeGender,
                 MinAge: null,
-                MaxAge: null);
+                MaxAge: null,
+                ShowHidden: showHidden ?? false);
 
             var results = await handler.HandleAsync(filter, ct);
             return Results.Ok(results);
@@ -65,19 +67,25 @@ public static class CastingEndpoints
         group.MapPost("/{id:guid}/favorite", async (Guid id, MarkAsFavoriteHandler handler, CancellationToken ct) =>
         {
             var ok = await handler.HandleAsync(id, ct);
-            return ok ? Results.Ok() : Results.NotFound();
+            return ok ? Results.NoContent() : Results.NotFound();
         });
 
         group.MapPost("/{id:guid}/applied", async (Guid id, MarkAsAppliedHandler handler, CancellationToken ct) =>
         {
             var ok = await handler.HandleAsync(id, ct);
-            return ok ? Results.Ok() : Results.NotFound();
+            return ok ? Results.NoContent() : Results.NotFound();
         });
 
         group.MapDelete("/{id:guid}/applied", async (Guid id, UnmarkAsAppliedHandler handler, CancellationToken ct) =>
         {
             var ok = await handler.HandleAsync(id, ct);
-            return ok ? Results.Ok() : Results.NotFound();
+            return ok ? Results.NoContent() : Results.NotFound();
+        });
+
+        group.MapPost("/{id:guid}/hidden", async (Guid id, ToggleHiddenHandler handler, CancellationToken ct) =>
+        {
+            var ok = await handler.HandleAsync(id, ct);
+            return ok ? Results.NoContent() : Results.NotFound();
         });
 
         return app;

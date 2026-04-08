@@ -17,6 +17,7 @@ export interface CastingCall {
   requirements: string | null;
   isFavorite: boolean;
   isApplied: boolean;
+  isHidden: boolean;
   scrapedAt: string;
 }
 
@@ -27,6 +28,7 @@ export interface SourceStatus {
   isEnabled: boolean;
   lastScrapedAt: string | null;
   errorCount: number;
+  hasCustomScraper: boolean;
 }
 
 export interface UserProfile {
@@ -49,4 +51,5 @@ export interface FilterState {
   regions?: SourceRegion[];
   onlyPaid?: boolean;
   gender?: string;
+  showHidden?: boolean;
 }

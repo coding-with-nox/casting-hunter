@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from 'react';
 import type { CastingCall } from '../api/types';
 import { SourceBadge } from './SourceBadge';
 
@@ -6,77 +7,149 @@ interface Props {
   onToggleFavorite: (id: string) => void;
   onMarkApplied: (id: string) => void;
   onUnmarkApplied: (id: string) => void;
+  onToggleHidden: (id: string) => void;
 }
 
-export function CastingCard({ casting, onToggleFavorite, onMarkApplied, onUnmarkApplied }: Props) {
+export function CastingCard({ casting, onToggleFavorite, onMarkApplied, onUnmarkApplied, onToggleHidden }: Props) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
   const deadline = casting.deadline
     ? new Date(casting.deadline).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
     : null;
 
+  const isExpired = casting.deadline ? new Date(casting.deadline) < new Date() : false;
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpen]);
+
   return (
-    <div className="bg-[#1e1e1e] border border-[#2a2a2a] rounded-xl p-4 flex flex-col gap-3 hover:border-[#d4af37]/30 transition-colors">
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="text-[#f5f5f5] font-semibold text-base leading-snug flex-1">
+    <div className={`bg-[#1e1e1e] border rounded-xl p-4 flex flex-col gap-3 transition-all ${
+      casting.isApplied
+        ? 'border-emerald-800/60 hover:border-emerald-700/60'
+        : 'border-[#2a2a2a] hover:border-[#d4af37]/30'
+    }`}>
+      {/* Header: titolo + azioni */}
+      <div className="flex items-start gap-2">
+        <h3 className="text-[#f5f5f5] font-semibold text-sm leading-snug flex-1">
           {casting.title}
         </h3>
-        <button
-          onClick={() => onToggleFavorite(casting.id)}
-          className={`text-xl flex-shrink-0 transition-transform hover:scale-110 ${casting.isFavorite ? 'text-[#d4af37]' : 'text-[#555]'}`}
-          title={casting.isFavorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}
-        >
-          ★
-        </button>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {/* Preferiti */}
+          <button
+            onClick={() => onToggleFavorite(casting.id)}
+            title={casting.isFavorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'}
+            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-[#2a2a2a] ${
+              casting.isFavorite ? 'text-[#d4af37]' : 'text-[#444]'
+            }`}
+          >
+            ★
+          </button>
+          {/* Menu nascondi/scarta */}
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setMenuOpen(o => !o)}
+              title="Opzioni"
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-[#444] hover:text-[#9ca3af] hover:bg-[#2a2a2a] transition-colors text-xs"
+            >
+              ···
+            </button>
+            {menuOpen && (
+              <div className="absolute right-0 top-8 z-20 bg-[#1a1a1a] border border-[#333] rounded-lg shadow-xl py-1 w-44">
+                <button
+                  onClick={() => { onToggleHidden(casting.id); setMenuOpen(false); }}
+                  className="w-full text-left px-3 py-2 text-sm text-[#9ca3af] hover:bg-[#2a2a2a] hover:text-[#f5f5f5] flex items-center gap-2"
+                >
+                  <span>🚫</span> Scarta casting
+                </button>
+                {!casting.isApplied ? (
+                  <button
+                    onClick={() => { onMarkApplied(casting.id); setMenuOpen(false); }}
+                    className="w-full text-left px-3 py-2 text-sm text-[#9ca3af] hover:bg-[#2a2a2a] hover:text-emerald-400 flex items-center gap-2"
+                  >
+                    <span>✓</span> Segna come candidata
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { onUnmarkApplied(casting.id); setMenuOpen(false); }}
+                    className="w-full text-left px-3 py-2 text-sm text-[#9ca3af] hover:bg-[#2a2a2a] hover:text-red-400 flex items-center gap-2"
+                  >
+                    <span>✕</span> Annulla candidatura
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 items-center">
+      {/* Badge: fonte, tipo, stato */}
+      <div className="flex flex-wrap gap-1.5 items-center">
         <SourceBadge name={casting.sourceName} region={casting.region} />
-        <span className="text-xs px-2 py-0.5 rounded-full bg-[#2a2a2a] text-[#9ca3af]">{casting.type}</span>
+        <span className="text-xs px-2 py-0.5 rounded-full bg-[#252525] text-[#777]">{casting.type}</span>
         {casting.isPaid && (
-          <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-900/50 text-yellow-400 font-medium">
-            💰 Retribuito
+          <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-900/40 text-yellow-400 font-medium">
+            💰 Pagato
           </span>
         )}
         {casting.isApplied && (
-          <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-900/50 text-emerald-400">
+          <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-900/40 text-emerald-400 font-medium">
             ✓ Candidata
           </span>
         )}
       </div>
 
-      {casting.location && (
-        <p className="text-sm text-[#9ca3af]">📍 {casting.location}</p>
-      )}
+      {/* Info */}
+      <div className="flex flex-col gap-1">
+        {casting.location && (
+          <p className="text-xs text-[#777] flex items-center gap-1">
+            <span>📍</span> {casting.location}
+          </p>
+        )}
+        {deadline && (
+          <p className={`text-xs flex items-center gap-1 ${isExpired ? 'text-red-500' : 'text-[#777]'}`}>
+            <span>⏰</span>
+            {isExpired ? 'Scaduto: ' : 'Scadenza: '}
+            <span className={isExpired ? 'text-red-400' : 'text-[#d4af37]'}>{deadline}</span>
+          </p>
+        )}
+        {casting.description && (
+          <p className="text-xs text-[#666] line-clamp-2 mt-0.5">{casting.description}</p>
+        )}
+      </div>
 
-      {deadline && (
-        <p className="text-sm text-[#9ca3af]">⏰ Scadenza: <span className="text-[#d4af37]">{deadline}</span></p>
-      )}
-
-      {casting.description && (
-        <p className="text-sm text-[#9ca3af] line-clamp-3">{casting.description}</p>
-      )}
-
-      <div className="flex gap-2 mt-auto pt-2 border-t border-[#2a2a2a]">
+      {/* Azioni principali */}
+      <div className="flex gap-2 mt-auto pt-2 border-t border-[#252525]">
         <a
           href={casting.sourceUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex-1 text-center text-sm py-1.5 px-3 rounded-lg bg-[#d4af37] text-black font-medium hover:bg-[#b8962c] transition-colors"
+          className="flex-1 text-center text-sm py-2 px-3 rounded-lg bg-[#d4af37] text-black font-semibold hover:bg-[#b8962c] transition-colors"
         >
-          Vai alla candidatura →
+          Candidati →
         </a>
         {casting.isApplied ? (
           <button
             onClick={() => onUnmarkApplied(casting.id)}
-            className="text-sm py-1.5 px-3 rounded-lg border border-[#2a2a2a] text-[#9ca3af] hover:border-red-500/50 hover:text-red-400 transition-colors"
+            className="text-sm py-2 px-3 rounded-lg border border-[#333] text-[#777] hover:border-red-800/60 hover:text-red-400 transition-colors"
+            title="Annulla candidatura"
           >
-            Annulla candidatura
+            ✕
           </button>
         ) : (
           <button
             onClick={() => onMarkApplied(casting.id)}
-            className="text-sm py-1.5 px-3 rounded-lg border border-[#2a2a2a] text-[#9ca3af] hover:border-[#d4af37]/50 hover:text-[#d4af37] transition-colors"
+            className="text-sm py-2 px-3 rounded-lg border border-[#333] text-[#777] hover:border-emerald-800/60 hover:text-emerald-400 transition-colors"
+            title="Conferma candidatura"
           >
-            Conferma candidatura
+            ✓
           </button>
         )}
       </div>
