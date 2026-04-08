@@ -18,6 +18,7 @@ public class Source
         new() { Name = name, Region = region, Url = url, IsEnabled = isEnabled, ErrorCount = 0 };
 
     public void SetUrl(string url) => Url = url;
+    public void SetRegion(SourceRegion region) => Region = region;
 
     public void RecordSuccess() { LastScrapedAt = DateTime.UtcNow; ErrorCount = 0; }
     public void RecordError() => ErrorCount++;

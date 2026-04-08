@@ -57,6 +57,13 @@ export const castingApi = {
     return request<void>(`/sources/${encodeURIComponent(name)}`, { method: 'DELETE' });
   },
 
+  updateSource(name: string, data: { url?: string; region?: string }): Promise<SourceStatus> {
+    return request<SourceStatus>(`/sources/${encodeURIComponent(name)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
   createSource(name: string, url: string, region: string): Promise<SourceStatus> {
     return request<SourceStatus>('/sources', {
       method: 'POST',

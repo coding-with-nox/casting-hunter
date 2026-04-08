@@ -77,13 +77,53 @@ public static class SourceEndpoints
             string name,
             bool enabled,
             ISourceRepository repo,
+            IEnumerable<ICastingScraperStrategy> scrapers,
             CancellationToken ct) =>
         {
             var source = await repo.GetByNameAsync(name, ct);
-            if (source is null) return Results.NotFound($"Source '{name}' not found");
-            source.SetEnabled(enabled);
+            if (source is null)
+            {
+                // Built-in scraper with no DB record yet — create it on first toggle
+                var scraper = scrapers.FirstOrDefault(s => s.SourceName.Equals(name, StringComparison.OrdinalIgnoreCase));
+                if (scraper is null) return Results.NotFound($"Source '{name}' not found");
+                source = Source.Create(scraper.SourceName, scraper.Region, isEnabled: enabled);
+                await repo.AddAsync(source, ct);
+            }
+            else
+            {
+                source.SetEnabled(enabled);
+                await repo.UpdateAsync(source, ct);
+            }
+            return Results.NoContent();
+        });
+
+        group.MapPut("/{name}", async (
+            string name,
+            UpdateSourceRequest req,
+            ISourceRepository repo,
+            IEnumerable<ICastingScraperStrategy> scrapers,
+            CancellationToken ct) =>
+        {
+            var source = await repo.GetByNameAsync(name, ct);
+            if (source is null)
+            {
+                // Built-in with no record yet
+                var scraper = scrapers.FirstOrDefault(s => s.SourceName.Equals(name, StringComparison.OrdinalIgnoreCase));
+                if (scraper is null) return Results.NotFound($"Source '{name}' not found");
+                source = Source.Create(scraper.SourceName, scraper.Region);
+                await repo.AddAsync(source, ct);
+            }
+            if (req.Url is not null)
+            {
+                if (!Uri.TryCreate(req.Url, UriKind.Absolute, out _))
+                    return Results.BadRequest("Invalid URL format");
+                source.SetUrl(req.Url);
+            }
+            if (req.Region is not null && Enum.TryParse<SourceRegion>(req.Region, true, out var region))
+                source.SetRegion(region);
             await repo.UpdateAsync(source, ct);
-            return Results.Ok();
+            return Results.Ok(SourceStatusDto.FromEntity(source,
+                scrapers.Any(s => s.SourceName.Equals(name, StringComparison.OrdinalIgnoreCase))));
         });
 
         group.MapPost("/{name}/scrape", async (
@@ -111,3 +151,4 @@ public static class SourceEndpoints
 }
 
 public record CreateSourceRequest(string Name, string Url, string Region);
+public record UpdateSourceRequest(string? Url, string? Region);
