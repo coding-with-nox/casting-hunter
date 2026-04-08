@@ -31,7 +31,7 @@ public static class SourceEndpoints
             var registeredNames = scrapers.Select(s => s.SourceName).ToHashSet(StringComparer.OrdinalIgnoreCase);
             result.AddRange(dbSources.Values
                 .Where(s => !registeredNames.Contains(s.Name))
-                .Select(SourceStatusDto.FromEntity));
+                .Select(s => SourceStatusDto.FromEntity(s)));
 
             return Results.Ok(result);
         });

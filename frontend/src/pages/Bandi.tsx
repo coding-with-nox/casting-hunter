@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { castingApi } from '../api/castingApi';
-import type { BandiPlan, Bando, BandoSource } from '../api/types';
+import type { BandiPlan, Bando, BandoScrapeResult, BandoSource } from '../api/types';
 
 const FALLBACK_PLAN: BandiPlan = {
   status: 'Planning locale',
@@ -65,56 +65,67 @@ export function Bandi() {
   const [bandi, setBandi] = useState<Bando[]>([]);
   const [sources, setSources] = useState<BandoSource[]>([]);
   const [loading, setLoading] = useState(true);
+  const [scraping, setScraping] = useState(false);
+  const [scrapeResult, setScrapeResult] = useState<BandoScrapeResult | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
 
-  useEffect(() => {
-    let active = true;
+  const load = async () => {
+    setLoading(true);
+    const nextWarnings: string[] = [];
 
-    const load = async () => {
-      setLoading(true);
-      setWarnings([]);
+    try {
+      const [planResult, bandiResult, sourcesResult] = await Promise.allSettled([
+        castingApi.getBandiPlan(),
+        castingApi.getBandi(),
+        castingApi.getBandiSources(),
+      ]);
 
-      const nextWarnings: string[] = [];
-
-      try {
-        const [planResult, bandiResult, sourcesResult] = await Promise.allSettled([
-          castingApi.getBandiPlan(),
-          castingApi.getBandi(),
-          castingApi.getBandiSources(),
-        ]);
-
-        if (!active) return;
-
-        if (planResult.status === 'fulfilled') {
-          setPlan(planResult.value);
-        } else {
-          setPlan(FALLBACK_PLAN);
-          nextWarnings.push(planResult.reason instanceof Error ? planResult.reason.message : 'Piano bandi non disponibile');
-        }
-
-        if (bandiResult.status === 'fulfilled') {
-          setBandi(bandiResult.value);
-        } else {
-          setBandi([]);
-          nextWarnings.push(bandiResult.reason instanceof Error ? bandiResult.reason.message : 'Archivio bandi non disponibile');
-        }
-
-        if (sourcesResult.status === 'fulfilled') {
-          setSources(sourcesResult.value);
-        } else {
-          setSources([]);
-          nextWarnings.push(sourcesResult.reason instanceof Error ? sourcesResult.reason.message : 'Registry fonti bandi non disponibile');
-        }
-
-        setWarnings(nextWarnings);
-      } finally {
-        if (active) setLoading(false);
+      if (planResult.status === 'fulfilled') {
+        setPlan(planResult.value);
+      } else {
+        setPlan(FALLBACK_PLAN);
+        nextWarnings.push(planResult.reason instanceof Error ? planResult.reason.message : 'Piano bandi non disponibile');
       }
-    };
 
+      if (bandiResult.status === 'fulfilled') {
+        setBandi(bandiResult.value);
+      } else {
+        setBandi([]);
+        nextWarnings.push(bandiResult.reason instanceof Error ? bandiResult.reason.message : 'Archivio bandi non disponibile');
+      }
+
+      if (sourcesResult.status === 'fulfilled') {
+        setSources(sourcesResult.value);
+      } else {
+        setSources([]);
+        nextWarnings.push(sourcesResult.reason instanceof Error ? sourcesResult.reason.message : 'Registry fonti bandi non disponibile');
+      }
+
+      setWarnings(nextWarnings);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     void load();
-    return () => { active = false; };
   }, []);
+
+  const handleScrape = async () => {
+    setScraping(true);
+    setWarnings([]);
+
+    try {
+      const result = await castingApi.scrapeBandiP1();
+      setScrapeResult(result);
+      await load();
+    } catch (error) {
+      setScrapeResult(null);
+      setWarnings([error instanceof Error ? error.message : 'Scrape bandi P1 non disponibile']);
+    } finally {
+      setScraping(false);
+    }
+  };
 
   if (loading) return <div className="p-8 text-[#666]">Caricamento piano bandi...</div>;
 
@@ -145,12 +156,43 @@ export function Bandi() {
               <h2 className="text-xl font-semibold text-[#f5f5f5]">Bandi di concorso</h2>
               <p className="text-sm text-[#8a8a8a] mt-2 max-w-3xl">{plan.summary}</p>
             </div>
-            <div className="rounded-lg border border-[#d4af37]/30 bg-[#d4af37]/10 px-3 py-2 text-right">
-              <p className="text-[10px] uppercase tracking-[0.16em] text-[#d4af37]">Stato</p>
-              <p className="text-sm font-semibold text-[#f3d67a]">{plan.status}</p>
+            <div className="flex flex-col items-end gap-3">
+              <div className="rounded-lg border border-[#d4af37]/30 bg-[#d4af37]/10 px-3 py-2 text-right">
+                <p className="text-[10px] uppercase tracking-[0.16em] text-[#d4af37]">Stato</p>
+                <p className="text-sm font-semibold text-[#f3d67a]">{plan.status}</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleScrape}
+                disabled={scraping}
+                className="rounded-lg border border-[#d4af37]/40 bg-[#d4af37]/10 px-4 py-2 text-sm font-medium text-[#f3d67a] transition hover:bg-[#d4af37]/20 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {scraping ? 'Aggiornamento P1...' : 'Esegui scrape P1'}
+              </button>
             </div>
           </div>
         </section>
+
+        {scrapeResult && (
+          <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-5">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-[#666]">Trovati</p>
+              <p className="text-2xl font-semibold text-[#f5f5f5] mt-2">{scrapeResult.totalFound}</p>
+            </div>
+            <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-5">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-[#666]">Artistici</p>
+              <p className="text-2xl font-semibold text-[#f5f5f5] mt-2">{scrapeResult.totalEligible}</p>
+            </div>
+            <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-5">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-[#666]">Nuovi</p>
+              <p className="text-2xl font-semibold text-[#f3d67a] mt-2">{scrapeResult.totalNew}</p>
+            </div>
+            <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-5">
+              <p className="text-[10px] uppercase tracking-[0.16em] text-[#666]">Fonti toccate</p>
+              <p className="text-sm font-semibold text-[#f5f5f5] mt-2">{scrapeResult.sources.join(', ')}</p>
+            </div>
+          </section>
+        )}
 
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-5">
@@ -165,8 +207,8 @@ export function Bandi() {
           </div>
           <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-5">
             <p className="text-[10px] uppercase tracking-[0.16em] text-[#666]">Fase corrente</p>
-            <p className="text-2xl font-semibold text-[#f3d67a] mt-2">1</p>
-            <p className="text-sm text-[#7f7f7f] mt-1">Schema, persistenza e registry fonti completati.</p>
+            <p className="text-2xl font-semibold text-[#f3d67a] mt-2">2</p>
+            <p className="text-sm text-[#7f7f7f] mt-1">Scraper P1, filtro artistico e ingestione iniziale completati.</p>
           </div>
         </section>
 
@@ -235,7 +277,7 @@ export function Bandi() {
 
         <section className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-5 items-start">
           <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-5">
-            <h3 className="text-xs font-semibold text-[#555] uppercase tracking-wider mb-4">Registry fonti Fase 1</h3>
+            <h3 className="text-xs font-semibold text-[#555] uppercase tracking-wider mb-4">Registry fonti P1</h3>
             {sources.length === 0 ? (
               <div className="rounded-lg border border-[#222] bg-[#101010] px-4 py-3 text-sm text-[#888]">
                 Nessuna fonte bandi disponibile dal backend.
@@ -269,14 +311,21 @@ export function Bandi() {
               <div className="rounded-xl border border-dashed border-[#2a2a2a] bg-[#101010] px-4 py-6">
                 <p className="text-sm font-semibold text-[#f5f5f5]">Ancora vuoto</p>
                 <p className="text-sm text-[#7a7a7a] mt-2">
-                  La Fase 1 chiude schema, API e registry. I bandi reali arriveranno con la Fase 2 sugli scraper P1.
+                  Esegui lo scrape P1 per popolare l&apos;archivio da inPA, Gazzetta Ufficiale e MiC Spettacolo.
                 </p>
               </div>
             ) : (
               <div className="flex flex-col gap-2">
                 {bandi.map(bando => (
-                  <div key={bando.id} className="rounded-xl border border-[#222] bg-[#101010] px-4 py-3">
+                  <div key={bando.id} className="rounded-xl border border-[#222] bg-[#101010] px-4 py-3 [&>p]:hidden">
                     <p className="text-sm font-semibold text-[#f5f5f5]">{bando.title}</p>
+                    <div className="text-xs text-[#8a8a8a] mt-1">{bando.issuerName} - {bando.sourceName}</div>
+                    <p className="text-xs text-[#8a8a8a] mt-1">{bando.issuerName} • {bando.sourceName}</p>
+                    <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                      <span className="rounded-md bg-[#161616] px-2 py-1 text-[#d0d0d0]">{bando.status}</span>
+                      {bando.discipline && <span className="rounded-md bg-[#161616] px-2 py-1 text-[#9cc5ff]">{bando.discipline}</span>}
+                      {bando.deadline && <span className="rounded-md bg-[#161616] px-2 py-1 text-[#f3d67a]">Scade {new Date(bando.deadline).toLocaleDateString('it-IT')}</span>}
+                    </div>
                     <p className="text-xs text-[#8a8a8a] mt-1">{bando.issuerName} • {bando.sourceName}</p>
                   </div>
                 ))}

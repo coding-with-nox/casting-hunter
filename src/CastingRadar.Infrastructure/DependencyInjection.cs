@@ -2,6 +2,7 @@ using CastingRadar.Application.Interfaces;
 using CastingRadar.Application.UseCases.GetCastingCalls;
 using CastingRadar.Application.UseCases.MarkAsApplied;
 using CastingRadar.Application.UseCases.MarkAsFavorite;
+using CastingRadar.Application.UseCases.ScrapeBandiPhaseOne;
 using CastingRadar.Application.UseCases.ToggleHidden;
 using CastingRadar.Application.UseCases.ScrapeAllSources;
 using CastingRadar.Application.UseCases.UpdateUserProfile;
@@ -9,6 +10,7 @@ using CastingRadar.Infrastructure.Http;
 using CastingRadar.Infrastructure.Notifications;
 using CastingRadar.Infrastructure.Persistence;
 using CastingRadar.Infrastructure.Persistence.Repositories;
+using CastingRadar.Infrastructure.Scrapers.Bandi;
 using CastingRadar.Infrastructure.Scrapers.InternationalSources;
 using CastingRadar.Infrastructure.Scrapers.ItalianSources;
 using Microsoft.EntityFrameworkCore;
@@ -61,6 +63,11 @@ public static class DependencyInjection
         // HTTP clients
         services.AddScraperHttpClient("Scraper");
 
+        // Bandi scrapers (P1)
+        services.AddScoped<IBandoScraperStrategy, InpaBandoScraper>();
+        services.AddScoped<IBandoScraperStrategy, GazzettaBandoScraper>();
+        services.AddScoped<IBandoScraperStrategy, MicSpettacoloBandoScraper>();
+
         // Scrapers (Italian)
         services.AddScoped<ICastingScraperStrategy, TiconsiglioScraper>();
         services.AddScoped<ICastingScraperStrategy, AttoriCastingScraper>();
@@ -73,6 +80,7 @@ public static class DependencyInjection
         services.AddScoped<ICastingScraperStrategy, BackstageScraper>();
 
         // Use cases
+        services.AddScoped<ScrapeBandiPhaseOneHandler>();
         services.AddScoped<ScrapeAllSourcesHandler>();
         services.AddScoped<GetCastingCallsHandler>();
         services.AddScoped<MarkAsFavoriteHandler>();

@@ -1,5 +1,6 @@
 using CastingRadar.Application.DTOs;
 using CastingRadar.Application.Interfaces;
+using CastingRadar.Application.UseCases.ScrapeBandiPhaseOne;
 
 namespace CastingRadar.Api.Endpoints;
 
@@ -19,6 +20,16 @@ public static class BandiEndpoints
         {
             var sources = await repo.GetAllAsync(ct);
             return Results.Ok(sources.Select(BandoSourceDto.FromEntity));
+        });
+
+        group.MapPost("/scrape-p1", async (ScrapeBandiPhaseOneHandler handler, CancellationToken ct) =>
+        {
+            var result = await handler.HandleAsync(ct);
+            return Results.Ok(BandoScrapeResultDto.Create(
+                totalFound: result.TotalFound,
+                totalEligible: result.TotalEligible,
+                totalNew: result.TotalNew,
+                sources: result.Sources));
         });
 
         group.MapGet("/plan", () =>

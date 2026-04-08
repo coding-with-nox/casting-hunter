@@ -1,4 +1,4 @@
-import type { BandiPlan, Bando, BandoSource, CastingCall, FilterState, SourceStatus, Stats, UserProfile } from './types';
+import type { BandiPlan, Bando, BandoScrapeResult, BandoSource, CastingCall, FilterState, SourceStatus, Stats, UserProfile } from './types';
 
 const BASE = '/api';
 
@@ -117,5 +117,9 @@ export const castingApi = {
 
   getBandiSources(): Promise<BandoSource[]> {
     return request<BandoSource[]>('/bandi/sources');
+  },
+
+  scrapeBandiP1(): Promise<BandoScrapeResult> {
+    return request<BandoScrapeResult>('/bandi/scrape-p1', { method: 'POST' });
   },
 };

@@ -84,6 +84,13 @@ export interface BandoSource {
   isEnabled: boolean;
 }
 
+export interface BandoScrapeResult {
+  totalFound: number;
+  totalEligible: number;
+  totalNew: number;
+  sources: string[];
+}
+
 export interface BandiPlan {
   status: string;
   summary: string;
