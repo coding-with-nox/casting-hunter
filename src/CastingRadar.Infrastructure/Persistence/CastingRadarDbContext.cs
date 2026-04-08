@@ -8,12 +8,27 @@ namespace CastingRadar.Infrastructure.Persistence;
 
 public class CastingRadarDbContext(DbContextOptions<CastingRadarDbContext> options) : DbContext(options)
 {
+    public DbSet<Bando> Bandi => Set<Bando>();
+    public DbSet<BandoSource> BandoSources => Set<BandoSource>();
     public DbSet<CastingCall> CastingCalls => Set<CastingCall>();
     public DbSet<Source> Sources => Set<Source>();
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<Bando>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.ContentHash).IsUnique();
+            e.Property(x => x.ConfidenceScore).HasPrecision(5, 2);
+        });
+
+        modelBuilder.Entity<BandoSource>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.Name).IsUnique();
+        });
+
         modelBuilder.Entity<CastingCall>(e =>
         {
             e.HasKey(x => x.Id);

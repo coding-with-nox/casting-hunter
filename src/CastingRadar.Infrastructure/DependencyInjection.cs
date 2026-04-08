@@ -49,6 +49,8 @@ public static class DependencyInjection
         }
 
         // Repositories
+        services.AddScoped<IBandoRepository, BandoRepository>();
+        services.AddScoped<IBandoSourceRepository, BandoSourceRepository>();
         services.AddScoped<ICastingRepository, CastingRepository>();
         services.AddScoped<ISourceRepository, SourceRepository>();
         services.AddScoped<IUserProfileRepository, UserProfileRepository>();

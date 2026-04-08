@@ -1,4 +1,5 @@
 using CastingRadar.Application.DTOs;
+using CastingRadar.Application.Interfaces;
 
 namespace CastingRadar.Api.Endpoints;
 
@@ -7,6 +8,18 @@ public static class BandiEndpoints
     public static IEndpointRouteBuilder MapBandiEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/bandi");
+
+        group.MapGet("/", async (IBandoRepository repo, CancellationToken ct) =>
+        {
+            var bandi = await repo.GetAllAsync(ct);
+            return Results.Ok(bandi.Select(BandoDto.FromEntity));
+        });
+
+        group.MapGet("/sources", async (IBandoSourceRepository repo, CancellationToken ct) =>
+        {
+            var sources = await repo.GetAllAsync(ct);
+            return Results.Ok(sources.Select(BandoSourceDto.FromEntity));
+        });
 
         group.MapGet("/plan", () =>
         {

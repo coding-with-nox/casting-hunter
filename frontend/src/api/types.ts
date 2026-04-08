@@ -55,6 +55,35 @@ export interface BandiSourceGroup {
   items: string[];
 }
 
+export interface Bando {
+  id: string;
+  title: string;
+  issuerName: string;
+  issuerType: string;
+  sourceName: string;
+  sourceUrl: string;
+  applicationUrl: string | null;
+  publishedAt: string | null;
+  deadline: string | null;
+  location: string | null;
+  discipline: string | null;
+  role: string | null;
+  bodyText: string;
+  isPublic: boolean;
+  confidenceScore: number;
+  status: string;
+  createdAt: string;
+}
+
+export interface BandoSource {
+  name: string;
+  category: string;
+  baseUrl: string;
+  priority: number;
+  isOfficial: boolean;
+  isEnabled: boolean;
+}
+
 export interface BandiPlan {
   status: string;
   summary: string;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { castingApi } from '../api/castingApi';
-import type { BandiPlan } from '../api/types';
+import type { BandiPlan, Bando, BandoSource } from '../api/types';
 
 const FALLBACK_PLAN: BandiPlan = {
   status: 'Planning locale',
@@ -62,23 +62,51 @@ const FALLBACK_PLAN: BandiPlan = {
 
 export function Bandi() {
   const [plan, setPlan] = useState<BandiPlan | null>(null);
+  const [bandi, setBandi] = useState<Bando[]>([]);
+  const [sources, setSources] = useState<BandoSource[]>([]);
   const [loading, setLoading] = useState(true);
-  const [warning, setWarning] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
 
   useEffect(() => {
     let active = true;
 
     const load = async () => {
       setLoading(true);
-      setWarning(null);
+      setWarnings([]);
+
+      const nextWarnings: string[] = [];
+
       try {
-        const data = await castingApi.getBandiPlan();
-        if (active) setPlan(data);
-      } catch (e) {
-        if (active) {
+        const [planResult, bandiResult, sourcesResult] = await Promise.allSettled([
+          castingApi.getBandiPlan(),
+          castingApi.getBandi(),
+          castingApi.getBandiSources(),
+        ]);
+
+        if (!active) return;
+
+        if (planResult.status === 'fulfilled') {
+          setPlan(planResult.value);
+        } else {
           setPlan(FALLBACK_PLAN);
-          setWarning(e instanceof Error ? e.message : 'Endpoint bandi non disponibile');
+          nextWarnings.push(planResult.reason instanceof Error ? planResult.reason.message : 'Piano bandi non disponibile');
         }
+
+        if (bandiResult.status === 'fulfilled') {
+          setBandi(bandiResult.value);
+        } else {
+          setBandi([]);
+          nextWarnings.push(bandiResult.reason instanceof Error ? bandiResult.reason.message : 'Archivio bandi non disponibile');
+        }
+
+        if (sourcesResult.status === 'fulfilled') {
+          setSources(sourcesResult.value);
+        } else {
+          setSources([]);
+          nextWarnings.push(sourcesResult.reason instanceof Error ? sourcesResult.reason.message : 'Registry fonti bandi non disponibile');
+        }
+
+        setWarnings(nextWarnings);
       } finally {
         if (active) setLoading(false);
       }
@@ -103,9 +131,11 @@ export function Bandi() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="p-6 flex flex-col gap-5">
-        {warning && (
-          <div className="bg-yellow-900/20 border border-yellow-800/50 rounded-lg p-4 text-sm text-yellow-200">
-            {warning}. Visualizzo il piano locale finche il backend non espone ancora `/api/bandi/plan`.
+        {warnings.length > 0 && (
+          <div className="bg-yellow-900/20 border border-yellow-800/50 rounded-lg p-4 text-sm text-yellow-200 flex flex-col gap-1">
+            {warnings.map(w => (
+              <div key={w}>{w}</div>
+            ))}
           </div>
         )}
         <section className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-5">
@@ -119,6 +149,24 @@ export function Bandi() {
               <p className="text-[10px] uppercase tracking-[0.16em] text-[#d4af37]">Stato</p>
               <p className="text-sm font-semibold text-[#f3d67a]">{plan.status}</p>
             </div>
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-5">
+            <p className="text-[10px] uppercase tracking-[0.16em] text-[#666]">Archivio bandi</p>
+            <p className="text-2xl font-semibold text-[#f5f5f5] mt-2">{bandi.length}</p>
+            <p className="text-sm text-[#7f7f7f] mt-1">Record disponibili nella nuova sezione.</p>
+          </div>
+          <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-5">
+            <p className="text-[10px] uppercase tracking-[0.16em] text-[#666]">Fonti registrate</p>
+            <p className="text-2xl font-semibold text-[#f5f5f5] mt-2">{sources.length}</p>
+            <p className="text-sm text-[#7f7f7f] mt-1">Registry iniziale per le fonti P1 e P2.</p>
+          </div>
+          <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-5">
+            <p className="text-[10px] uppercase tracking-[0.16em] text-[#666]">Fase corrente</p>
+            <p className="text-2xl font-semibold text-[#f3d67a] mt-2">1</p>
+            <p className="text-sm text-[#7f7f7f] mt-1">Schema, persistenza e registry fonti completati.</p>
           </div>
         </section>
 
@@ -182,6 +230,58 @@ export function Bandi() {
                 </div>
               </div>
             ))}
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-5 items-start">
+          <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-5">
+            <h3 className="text-xs font-semibold text-[#555] uppercase tracking-wider mb-4">Registry fonti Fase 1</h3>
+            {sources.length === 0 ? (
+              <div className="rounded-lg border border-[#222] bg-[#101010] px-4 py-3 text-sm text-[#888]">
+                Nessuna fonte bandi disponibile dal backend.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {sources.map(source => (
+                  <div key={source.name} className="rounded-xl border border-[#222] bg-[#101010] px-4 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-[#f5f5f5]">{source.name}</p>
+                        <p className="text-xs text-[#808080] mt-1">{source.category}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-[#d4af37]">P{source.priority}</p>
+                        <p className={`text-xs mt-1 ${source.isEnabled ? 'text-emerald-400' : 'text-[#777]'}`}>
+                          {source.isEnabled ? 'Attiva' : 'Disattivata'}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-[#666] mt-3 break-all">{source.baseUrl}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-5">
+            <h3 className="text-xs font-semibold text-[#555] uppercase tracking-wider mb-4">Archivio bandi</h3>
+            {bandi.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-[#2a2a2a] bg-[#101010] px-4 py-6">
+                <p className="text-sm font-semibold text-[#f5f5f5]">Ancora vuoto</p>
+                <p className="text-sm text-[#7a7a7a] mt-2">
+                  La Fase 1 chiude schema, API e registry. I bandi reali arriveranno con la Fase 2 sugli scraper P1.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {bandi.map(bando => (
+                  <div key={bando.id} className="rounded-xl border border-[#222] bg-[#101010] px-4 py-3">
+                    <p className="text-sm font-semibold text-[#f5f5f5]">{bando.title}</p>
+                    <p className="text-xs text-[#8a8a8a] mt-1">{bando.issuerName} • {bando.sourceName}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       </div>
