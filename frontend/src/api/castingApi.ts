@@ -123,11 +123,22 @@ export const castingApi = {
     return request<BandoSource[]>('/bandi/sources');
   },
 
+  createCuratedBandoSource(data: { name: string; baseUrl: string; priority?: number; isOfficial?: boolean }): Promise<BandoSource> {
+    return request<BandoSource>('/bandi/sources/curated', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
   scrapeBandiP1(): Promise<BandoScrapeResult> {
     return request<BandoScrapeResult>('/bandi/scrape-p1', { method: 'POST' });
   },
 
   scrapeBandiP2(): Promise<BandoScrapeResult> {
     return request<BandoScrapeResult>('/bandi/scrape-p2', { method: 'POST' });
+  },
+
+  scrapeBandiP3(): Promise<BandoScrapeResult> {
+    return request<BandoScrapeResult>('/bandi/scrape-p3', { method: 'POST' });
   },
 };

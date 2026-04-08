@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using CastingRadar.Application.Interfaces;
 using CastingRadar.Domain.Entities;
 using Microsoft.Extensions.Logging;
+using System.Net;
 
 namespace CastingRadar.Application.UseCases.ScrapeBandiPhaseOne;
 
@@ -122,6 +123,56 @@ public class ScrapeBandiPhaseOneHandler(
                 totalEligible++;
 
                 var issuerName = item.IssuerName ?? InferIssuerName(source.Name, item.Title, item.BodyText);
+                var discipline = InferDiscipline(item.Title, item.BodyText);
+                var role = InferRole(item.Title, item.BodyText);
+                var confidenceScore = CalculateConfidence(text, source, role, discipline, item.Deadline);
+                var status = InferStatus(item.Deadline, confidenceScore, role, discipline);
+
+                var bando = Bando.Create(
+                    title: CleanText(item.Title),
+                    issuerName: issuerName,
+                    issuerType: InferIssuerType(source),
+                    sourceName: source.Name,
+                    sourceUrl: item.SourceUrl,
+                    bodyText: CleanText(item.BodyText),
+                    isPublic: source.Category.Contains("P1", StringComparison.OrdinalIgnoreCase),
+                    confidenceScore: confidenceScore,
+                    status: status,
+                    applicationUrl: item.ApplicationUrl,
+                    publishedAt: item.PublishedAt,
+                    deadline: item.Deadline,
+                    location: item.Location,
+                    discipline: discipline,
+                    role: role);
+
+                if (await bandoRepository.ExistsByHashAsync(bando.ContentHash, ct))
+                {
+                    continue;
+                }
+
+                await bandoRepository.AddAsync(bando, ct);
+                totalNew++;
+            }
+        }
+
+        foreach (var source in enabledSources.Where(source => !scraperMap.ContainsKey(source.Name)))
+        {
+            logger.LogInformation("Scraping curated bando source {SourceName}", source.Name);
+            var items = (await ScrapeCuratedSourceAsync(source, ct)).ToList();
+            touchedSources.Add(source.Name);
+            totalFound += items.Count;
+
+            foreach (var item in items)
+            {
+                var text = CleanText($"{item.Title} {item.BodyText}");
+                if (!IsArtistic(text))
+                {
+                    continue;
+                }
+
+                totalEligible++;
+
+                var issuerName = item.IssuerName ?? source.Name;
                 var discipline = InferDiscipline(item.Title, item.BodyText);
                 var role = InferRole(item.Title, item.BodyText);
                 var confidenceScore = CalculateConfidence(text, source, role, discipline, item.Deadline);
@@ -314,6 +365,57 @@ public class ScrapeBandiPhaseOneHandler(
         }
 
         return score;
+    }
+
+    private static async Task<IEnumerable<ScrapedBandoItem>> ScrapeCuratedSourceAsync(BandoSource source, CancellationToken ct)
+    {
+        using var http = new HttpClient();
+        http.DefaultRequestHeaders.Add("User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36");
+
+        var html = await http.GetStringAsync(source.BaseUrl, ct);
+        var baseUri = new Uri(source.BaseUrl);
+        var results = new List<ScrapedBandoItem>();
+
+        var linkMatches = Regex.Matches(
+            html,
+            @"<a\s[^>]*href=[""']([^""']+)[""'][^>]*>(.*?)</a>",
+            RegexOptions.IgnoreCase | RegexOptions.Singleline);
+
+        foreach (Match match in linkMatches.Cast<Match>().Take(120))
+        {
+            var rawLink = match.Groups[1].Value;
+            var linkText = WebUtility.HtmlDecode(Regex.Replace(match.Groups[2].Value, "<.*?>", " "));
+            var title = CleanText(linkText);
+
+            if (string.IsNullOrWhiteSpace(title) || !LooksCuratedAndArtistic(title))
+            {
+                continue;
+            }
+
+            var link = Uri.TryCreate(rawLink, UriKind.Absolute, out var absolute)
+                ? absolute.ToString()
+                : new Uri(baseUri, rawLink).ToString();
+
+            results.Add(new ScrapedBandoItem(
+                Title: title,
+                SourceUrl: link,
+                BodyText: title,
+                IssuerName: source.Name));
+        }
+
+        return results
+            .DistinctBy(item => item.SourceUrl, StringComparer.OrdinalIgnoreCase)
+            .Take(20)
+            .ToList();
+    }
+
+    private static bool LooksCuratedAndArtistic(string title)
+    {
+        var text = title.ToLowerInvariant();
+        return (text.Contains("bando") || text.Contains("audizione") || text.Contains("selezione") || text.Contains("concorso"))
+            && GetPositiveSignalScore(text) > 0m
+            && !HardExcludedKeywords.Any(keyword => text.Contains(keyword));
     }
 }
 

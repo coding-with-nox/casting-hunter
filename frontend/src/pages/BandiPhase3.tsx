@@ -108,8 +108,11 @@ export function BandiPhase3() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [scraping, setScraping] = useState(false);
   const [scrapeResult, setScrapeResult] = useState<BandoScrapeResult | null>(null);
-  const [scrapeScope, setScrapeScope] = useState<'P1' | 'P2' | null>(null);
+  const [scrapeScope, setScrapeScope] = useState<'P1' | 'P2' | 'P3' | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [curatedName, setCuratedName] = useState('');
+  const [curatedBaseUrl, setCuratedBaseUrl] = useState('');
+  const [savingCurated, setSavingCurated] = useState(false);
   const [search, setSearch] = useState('');
   const [sourceFilter, setSourceFilter] = useState('all');
   const [issuerTypeFilter, setIssuerTypeFilter] = useState('all');
@@ -168,6 +171,7 @@ export function BandiPhase3() {
   const reviewQueue = bandi
     .filter(bando => bando.status === 'Da rivedere')
     .sort((left, right) => left.confidenceScore - right.confidenceScore);
+  const curatedSources = sources.filter(source => source.category.includes('P3'));
 
   const filteredBandi = [...bandi]
     .filter(bando => {
@@ -274,6 +278,49 @@ export function BandiPhase3() {
     }
   };
 
+  const handleScrapeP3 = async () => {
+    setScraping(true);
+    setWarnings([]);
+    setScrapeScope('P3');
+
+    try {
+      const result = await castingApi.scrapeBandiP3();
+      setScrapeResult(result);
+      await load();
+    } catch (error) {
+      setScrapeResult(null);
+      setWarnings([error instanceof Error ? error.message : 'Scrape bandi P3 non disponibile']);
+    } finally {
+      setScraping(false);
+    }
+  };
+
+  const handleCreateCuratedSource = async () => {
+    if (!curatedName.trim() || !curatedBaseUrl.trim()) {
+      setWarnings(['Nome fonte e URL sono obbligatori per registrare una whitelist curata']);
+      return;
+    }
+
+    setSavingCurated(true);
+    setWarnings([]);
+
+    try {
+      await castingApi.createCuratedBandoSource({
+        name: curatedName.trim(),
+        baseUrl: curatedBaseUrl.trim(),
+        priority: 20,
+        isOfficial: false,
+      });
+      setCuratedName('');
+      setCuratedBaseUrl('');
+      await load();
+    } catch (error) {
+      setWarnings([error instanceof Error ? error.message : 'Registrazione fonte curata non disponibile']);
+    } finally {
+      setSavingCurated(false);
+    }
+  };
+
   if (loading) {
     return <div className="p-8 text-[#666]">Caricamento bandi...</div>;
   }
@@ -310,7 +357,7 @@ export function BandiPhase3() {
             <div className="flex flex-col items-start gap-3 lg:items-end">
               <div className="rounded-lg border border-[#d4af37]/30 bg-[#d4af37]/10 px-3 py-2 text-right">
                 <p className="text-[10px] uppercase tracking-[0.16em] text-[#d4af37]">Fase corrente</p>
-                <p className="text-sm font-semibold text-[#f3d67a]">5 - Fonti P2</p>
+                <p className="text-sm font-semibold text-[#f3d67a]">6 - Fonti P3 curate</p>
               </div>
 
               <div className="flex flex-wrap gap-2">
@@ -329,6 +376,14 @@ export function BandiPhase3() {
                   className="rounded-lg border border-[#7aa7ff]/35 bg-[#0f1a33] px-4 py-2 text-sm font-medium text-[#b7cdff] transition hover:bg-[#132248] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {scraping && scrapeScope === 'P2' ? 'Aggiornamento P2...' : 'Esegui scrape P2'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleScrapeP3}
+                  disabled={scraping || curatedSources.length === 0}
+                  className="rounded-lg border border-emerald-700/35 bg-[#0f2a1d] px-4 py-2 text-sm font-medium text-emerald-200 transition hover:bg-[#133324] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {scraping && scrapeScope === 'P3' ? 'Aggiornamento P3...' : 'Esegui scrape P3'}
                 </button>
               </div>
             </div>
@@ -373,9 +428,9 @@ export function BandiPhase3() {
             <p className="mt-1 text-sm text-[#7f7f7f]">Registry iniziale per fonti P1 e P2.</p>
           </div>
           <div className="rounded-xl border border-[#1e1e1e] bg-[#141414] p-5">
-            <p className="text-[10px] uppercase tracking-[0.16em] text-[#666]">Fonti P2 coperte</p>
-            <p className="mt-2 text-2xl font-semibold text-[#f3d67a]">6</p>
-            <p className="mt-1 text-sm text-[#7f7f7f]">Scala, Opera Roma, TCBO, San Carlo, Massimo, Stabile Torino.</p>
+            <p className="text-[10px] uppercase tracking-[0.16em] text-[#666]">Whitelist P3</p>
+            <p className="mt-2 text-2xl font-semibold text-[#f3d67a]">{curatedSources.length}</p>
+            <p className="mt-1 text-sm text-[#7f7f7f]">Fonti curate registrate manualmente dal backend/UI.</p>
           </div>
         </section>
 
@@ -648,6 +703,33 @@ export function BandiPhase3() {
         <section className="grid grid-cols-1 gap-5 xl:grid-cols-[0.9fr_1.1fr] items-start">
           <div className="rounded-xl border border-[#1e1e1e] bg-[#141414] p-5">
             <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-[#555]">Registry fonti</h3>
+            <div className="mb-4 rounded-xl border border-[#234331] bg-[#101810] p-4">
+              <p className="text-sm font-semibold text-[#e8f6ec]">Aggiungi fonte curata P3</p>
+              <p className="mt-1 text-sm text-[#8fb39b]">Solo whitelist manuale. Nessun crawling libero del web.</p>
+              <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[1fr_1.4fr_auto]">
+                <input
+                  value={curatedName}
+                  onChange={event => setCuratedName(event.target.value)}
+                  placeholder="Nome ente o associazione"
+                  className="rounded-lg border border-[#2f4d39] bg-[#0d140d] px-3 py-2 text-sm text-[#f5f5f5] outline-none focus:border-emerald-500/40"
+                />
+                <input
+                  value={curatedBaseUrl}
+                  onChange={event => setCuratedBaseUrl(event.target.value)}
+                  placeholder="https://sito-ufficiale.it/bandi"
+                  className="rounded-lg border border-[#2f4d39] bg-[#0d140d] px-3 py-2 text-sm text-[#f5f5f5] outline-none focus:border-emerald-500/40"
+                />
+                <button
+                  type="button"
+                  onClick={handleCreateCuratedSource}
+                  disabled={savingCurated}
+                  className="rounded-lg border border-emerald-700/35 bg-[#163524] px-4 py-2 text-sm font-medium text-emerald-200 transition hover:bg-[#1b432e] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {savingCurated ? 'Salvataggio...' : 'Registra'}
+                </button>
+              </div>
+            </div>
+
             {sources.length === 0 ? (
               <div className="rounded-lg border border-[#222] bg-[#101010] px-4 py-3 text-sm text-[#888]">
                 Nessuna fonte bandi disponibile dal backend.

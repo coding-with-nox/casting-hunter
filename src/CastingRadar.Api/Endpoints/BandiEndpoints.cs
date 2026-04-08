@@ -1,6 +1,7 @@
 using CastingRadar.Application.DTOs;
 using CastingRadar.Application.Interfaces;
 using CastingRadar.Application.UseCases.ScrapeBandiPhaseOne;
+using CastingRadar.Domain.Entities;
 
 namespace CastingRadar.Api.Endpoints;
 
@@ -30,6 +31,39 @@ public static class BandiEndpoints
             return Results.Ok(sources.Select(BandoSourceDto.FromEntity));
         });
 
+        group.MapPost("/sources/curated", async (
+            CreateCuratedBandoSourceRequest request,
+            IBandoSourceRepository repo,
+            CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.BaseUrl))
+            {
+                return Results.BadRequest("Name e BaseUrl sono obbligatori");
+            }
+
+            if (!Uri.TryCreate(request.BaseUrl, UriKind.Absolute, out _))
+            {
+                return Results.BadRequest("BaseUrl non valido");
+            }
+
+            var existing = await repo.GetByNameAsync(request.Name.Trim(), ct);
+            if (existing is not null)
+            {
+                return Results.Conflict($"Fonte '{request.Name}' gia presente");
+            }
+
+            var source = BandoSource.Create(
+                name: request.Name.Trim(),
+                category: "P3 - Associazioni e organismi curati",
+                baseUrl: request.BaseUrl.Trim(),
+                priority: request.Priority is > 15 ? request.Priority.Value : 20,
+                isOfficial: request.IsOfficial ?? false,
+                isEnabled: true);
+
+            await repo.AddAsync(source, ct);
+            return Results.Created($"/api/bandi/sources/{Uri.EscapeDataString(source.Name)}", BandoSourceDto.FromEntity(source));
+        });
+
         group.MapPost("/scrape-p1", async (ScrapeBandiPhaseOneHandler handler, CancellationToken ct) =>
         {
             var result = await handler.HandleAsync(1, 4, ct);
@@ -43,6 +77,16 @@ public static class BandiEndpoints
         group.MapPost("/scrape-p2", async (ScrapeBandiPhaseOneHandler handler, CancellationToken ct) =>
         {
             var result = await handler.HandleAsync(10, 15, ct);
+            return Results.Ok(BandoScrapeResultDto.Create(
+                totalFound: result.TotalFound,
+                totalEligible: result.TotalEligible,
+                totalNew: result.TotalNew,
+                sources: result.Sources));
+        });
+
+        group.MapPost("/scrape-p3", async (ScrapeBandiPhaseOneHandler handler, CancellationToken ct) =>
+        {
+            var result = await handler.HandleAsync(20, 99, ct);
             return Results.Ok(BandoScrapeResultDto.Create(
                 totalFound: result.TotalFound,
                 totalEligible: result.TotalEligible,
@@ -110,3 +154,9 @@ public static class BandiEndpoints
         return app;
     }
 }
+
+public record CreateCuratedBandoSourceRequest(
+    string Name,
+    string BaseUrl,
+    int? Priority,
+    bool? IsOfficial);
