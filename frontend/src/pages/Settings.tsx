@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
 import { castingApi } from '../api/castingApi';
 import type { SourceStatus, UserProfile } from '../api/types';
+import { getStoredInterval, setStoredInterval, DEFAULT_INTERVAL } from '../hooks/useAutoRefresh';
 
 export function Settings() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [form, setForm] = useState({ gender: 'female', scenicAge: '', telegramChatId: '' });
+
+  const [refreshInterval, setRefreshIntervalState] = useState<number>(getStoredInterval);
+  const [intervalSaved, setIntervalSaved] = useState(false);
 
   const [sources, setSources] = useState<SourceStatus[]>([]);
   const [togglingSource, setTogglingSource] = useState<string | null>(null);
@@ -22,6 +26,14 @@ export function Settings() {
     });
     castingApi.getSources().then(setSources);
   }, []);
+
+  const handleSaveInterval = () => {
+    const clamped = Math.max(10, Math.min(3600, refreshInterval));
+    setStoredInterval(clamped);
+    setRefreshIntervalState(clamped);
+    setIntervalSaved(true);
+    setTimeout(() => setIntervalSaved(false), 2000);
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -132,6 +144,35 @@ export function Settings() {
         >
           {saved ? '✓ Salvato' : saving ? 'Salvataggio...' : 'Salva'}
         </button>
+      </section>
+
+      {/* Aggiornamento automatico */}
+      <section className="bg-[#141414] border border-[#1e1e1e] rounded-xl p-5 mb-5">
+        <h3 className="text-xs font-semibold text-[#555] uppercase tracking-wider mb-1">Aggiornamento automatico</h3>
+        <p className="text-xs text-[#444] mb-4">
+          Ogni quanti secondi cercare automaticamente nuovi casting in background.
+        </p>
+        <div className="flex items-center gap-3">
+          <input
+            type="number"
+            min={10}
+            max={3600}
+            value={refreshInterval}
+            onChange={e => setRefreshIntervalState(Number(e.target.value))}
+            className="w-28 bg-[#0f0f0f] border border-[#252525] rounded-lg px-3 py-2 text-sm text-[#f5f5f5] focus:outline-none focus:border-[#d4af37]/40"
+          />
+          <span className="text-xs text-[#555]">secondi (min 10)</span>
+          <button
+            onClick={handleSaveInterval}
+            className="py-2 px-3 rounded-lg bg-[#d4af37] text-black text-xs font-semibold hover:bg-[#b8962c] transition-colors"
+          >
+            {intervalSaved ? '✓ Salvato' : 'Applica'}
+          </button>
+        </div>
+        <p className="text-xs text-[#3a3a3a] mt-2">
+          Suggerimento: 60s per uso normale, 300s per risparmio batteria.
+          Il timer è visibile nell'icona in alto a destra — clicca per aggiornare subito.
+        </p>
       </section>
 
       {/* Siti integrati */}

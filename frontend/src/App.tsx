@@ -3,7 +3,9 @@ import { Dashboard } from './pages/Dashboard';
 import { Favorites } from './pages/Favorites';
 import { Settings } from './pages/Settings';
 import { NotificationBadge } from './components/NotificationBadge';
+import { TimerButton } from './components/TimerButton';
 import { useCastingCalls } from './hooks/useCastingCalls';
+import { useAutoRefresh } from './hooks/useAutoRefresh';
 import { castingApi } from './api/castingApi';
 
 type Tab = 'dashboard' | 'favorites' | 'settings';
@@ -16,7 +18,6 @@ const TABS = [
 
 function App() {
   const [tab, setTab] = useState<Tab>('dashboard');
-  const [scraping, setScraping] = useState(false);
   const { calls, refetch } = useCastingCalls();
 
   const newCount = calls.filter(c => {
@@ -32,15 +33,12 @@ function App() {
     settings: 0,
   };
 
-  const handleScrape = async () => {
-    setScraping(true);
-    try {
-      await castingApi.scrapeAll();
-      await refetch();
-    } finally {
-      setScraping(false);
-    }
+  const handleRefresh = async () => {
+    await castingApi.scrapeAll();
+    await refetch();
   };
+
+  const { secondsLeft, interval, refreshing, triggerNow } = useAutoRefresh(handleRefresh);
 
   return (
     <div className="h-screen bg-[#0f0f0f] flex flex-col overflow-hidden">
@@ -70,13 +68,12 @@ function App() {
             ))}
           </nav>
 
-          <button
-            onClick={handleScrape}
-            disabled={scraping}
-            className="text-xs px-3 py-1.5 rounded-lg bg-[#1a1a1a] border border-[#252525] text-[#555] hover:border-[#d4af37]/40 hover:text-[#d4af37] transition-colors disabled:opacity-40"
-          >
-            {scraping ? '⟳ Aggiornamento...' : '⟳ Aggiorna'}
-          </button>
+          <TimerButton
+            secondsLeft={secondsLeft}
+            totalSeconds={interval}
+            refreshing={refreshing}
+            onClick={triggerNow}
+          />
         </div>
       </header>
 
