@@ -40,6 +40,7 @@ services:
       dotnet watch run
         --project /src/src/CastingRadar.Api/CastingRadar.Api.csproj
         --no-hot-reload
+        --no-launch-profile
     volumes:
       - .:/src:delegated
       - ~/.nuget/packages:/root/.nuget/packages:ro
