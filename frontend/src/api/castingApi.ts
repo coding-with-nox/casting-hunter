@@ -1,4 +1,4 @@
-import type { CastingCall, FilterState, SourceStatus, Stats, UserProfile } from './types';
+import type { BandiPlan, CastingCall, FilterState, SourceStatus, Stats, UserProfile } from './types';
 
 const BASE = '/api';
 
@@ -8,8 +8,21 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     ...options,
   });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+
+  const contentType = res.headers.get('content-type') ?? '';
   const text = await res.text();
-  return (text ? JSON.parse(text) : undefined) as T;
+  if (!text) return undefined as T;
+
+  if (!contentType.includes('application/json')) {
+    const preview = text.trim().slice(0, 80).toLowerCase();
+    if (preview.startsWith('<!doctype') || preview.startsWith('<html') || preview.startsWith('<')) {
+      throw new Error(`Endpoint API non disponibile su ${path}`);
+    }
+
+    throw new Error(`Risposta non JSON ricevuta da ${path}`);
+  }
+
+  return JSON.parse(text) as T;
 }
 
 export const castingApi = {
@@ -92,5 +105,9 @@ export const castingApi = {
 
   getStats(): Promise<Stats> {
     return request<Stats>('/stats');
+  },
+
+  getBandiPlan(): Promise<BandiPlan> {
+    return request<BandiPlan>('/bandi/plan');
   },
 };

@@ -45,6 +45,25 @@ export interface Stats {
   bySource: Record<string, number>;
 }
 
+export interface BandiPriorityStep {
+  title: string;
+  detail: string;
+}
+
+export interface BandiSourceGroup {
+  name: string;
+  items: string[];
+}
+
+export interface BandiPlan {
+  status: string;
+  summary: string;
+  priorityPlan: BandiPriorityStep[];
+  extractionFlow: string[];
+  issuerTypes: string[];
+  sourceGroups: BandiSourceGroup[];
+}
+
 export interface FilterState {
   keywords?: string;
   types?: CastingType[];

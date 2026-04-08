@@ -79,6 +79,7 @@ app.UseStaticFiles();
 
 // API endpoints (general rate limit)
 app.MapCastingEndpoints();
+app.MapBandiEndpoints();
 app.MapSourceEndpoints();
 app.MapProfileEndpoints();
 app.MapStatsEndpoints();

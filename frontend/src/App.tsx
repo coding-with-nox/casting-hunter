@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Dashboard } from './pages/Dashboard';
+import { Bandi } from './pages/Bandi';
 import { Favorites } from './pages/Favorites';
 import { Settings } from './pages/Settings';
 import { NotificationBadge } from './components/NotificationBadge';
@@ -8,9 +9,10 @@ import { useCastingCalls } from './hooks/useCastingCalls';
 import { useAutoRefresh } from './hooks/useAutoRefresh';
 import { castingApi } from './api/castingApi';
 
-type Tab = 'dashboard' | 'favorites' | 'settings';
+type Tab = 'dashboard' | 'bandi' | 'favorites' | 'settings';
 
 const TABS = [
+  { id: 'bandi' as Tab, label: 'Bandi', icon: 'B' },
   { id: 'dashboard' as Tab, label: 'Dashboard', icon: '🎬' },
   { id: 'favorites' as Tab, label: 'Preferiti', icon: '⭐' },
   { id: 'settings' as Tab, label: 'Impostazioni', icon: '⚙️' },
@@ -28,6 +30,7 @@ function App() {
   const favoriteCount = calls.filter(c => c.isFavorite).length;
 
   const badges: Record<Tab, number> = {
+    bandi: 0,
     dashboard: newCount,
     favorites: favoriteCount,
     settings: 0,
@@ -79,6 +82,7 @@ function App() {
 
       {/* Body */}
       <div className="flex-1 min-h-0">
+        {tab === 'bandi' && <Bandi />}
         {tab === 'dashboard' && <Dashboard />}
         {tab === 'favorites' && <Favorites />}
         {tab === 'settings' && <Settings />}
