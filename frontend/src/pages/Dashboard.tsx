@@ -6,8 +6,8 @@ import { castingApi } from '../api/castingApi';
 import { useState } from 'react';
 
 export function Dashboard() {
-  const { filter, setKeywords, toggleType, toggleRegion, setOnlyPaid, reset } = useFilters();
-  const { calls, loading, error, refetch, toggleFavorite, markApplied } = useCastingCalls(filter);
+  const { filter, setKeywords, toggleType, toggleRegion, reset } = useFilters();
+  const { calls, loading, error, refetch, toggleFavorite, markApplied, unmarkApplied } = useCastingCalls(filter);
   const [scraping, setScraping] = useState(false);
 
   const handleScrapeAll = async () => {
@@ -41,11 +41,9 @@ export function Dashboard() {
           keywords={filter.keywords ?? ''}
           selectedTypes={filter.types ?? []}
           selectedRegions={filter.regions ?? []}
-          onlyPaid={filter.onlyPaid ?? false}
           onKeywordsChange={setKeywords}
           onToggleType={toggleType}
           onToggleRegion={toggleRegion}
-          onTogglePaid={setOnlyPaid}
           onReset={reset}
         />
 
@@ -82,6 +80,7 @@ export function Dashboard() {
                   casting={c}
                   onToggleFavorite={toggleFavorite}
                   onMarkApplied={markApplied}
+                  onUnmarkApplied={unmarkApplied}
                 />
               ))}
             </div>

@@ -5,9 +5,10 @@ interface Props {
   casting: CastingCall;
   onToggleFavorite: (id: string) => void;
   onMarkApplied: (id: string) => void;
+  onUnmarkApplied: (id: string) => void;
 }
 
-export function CastingCard({ casting, onToggleFavorite, onMarkApplied }: Props) {
+export function CastingCard({ casting, onToggleFavorite, onMarkApplied, onUnmarkApplied }: Props) {
   const deadline = casting.deadline
     ? new Date(casting.deadline).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
     : null;
@@ -61,14 +62,21 @@ export function CastingCard({ casting, onToggleFavorite, onMarkApplied }: Props)
           rel="noopener noreferrer"
           className="flex-1 text-center text-sm py-1.5 px-3 rounded-lg bg-[#d4af37] text-black font-medium hover:bg-[#b8962c] transition-colors"
         >
-          Candidati ora →
+          Vai alla candidatura →
         </a>
-        {!casting.isApplied && (
+        {casting.isApplied ? (
+          <button
+            onClick={() => onUnmarkApplied(casting.id)}
+            className="text-sm py-1.5 px-3 rounded-lg border border-[#2a2a2a] text-[#9ca3af] hover:border-red-500/50 hover:text-red-400 transition-colors"
+          >
+            Annulla candidatura
+          </button>
+        ) : (
           <button
             onClick={() => onMarkApplied(casting.id)}
             className="text-sm py-1.5 px-3 rounded-lg border border-[#2a2a2a] text-[#9ca3af] hover:border-[#d4af37]/50 hover:text-[#d4af37] transition-colors"
           >
-            Segna candidatura
+            Conferma candidatura
           </button>
         )}
       </div>

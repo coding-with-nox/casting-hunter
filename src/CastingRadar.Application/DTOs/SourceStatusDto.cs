@@ -6,10 +6,14 @@ namespace CastingRadar.Application.DTOs;
 public record SourceStatusDto(
     string Name,
     SourceRegion Region,
+    string? Url,
     bool IsEnabled,
     DateTime? LastScrapedAt,
     int ErrorCount)
 {
     public static SourceStatusDto FromEntity(Source s) =>
-        new(s.Name, s.Region, s.IsEnabled, s.LastScrapedAt, s.ErrorCount);
+        new(s.Name, s.Region, s.Url, s.IsEnabled, s.LastScrapedAt, s.ErrorCount);
+
+    public static SourceStatusDto FromScraper(string name, SourceRegion region) =>
+        new(name, region, null, true, null, 0);
 }

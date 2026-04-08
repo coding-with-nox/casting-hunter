@@ -74,6 +74,7 @@ public static class DependencyInjection
         services.AddScoped<GetCastingCallsHandler>();
         services.AddScoped<MarkAsFavoriteHandler>();
         services.AddScoped<MarkAsAppliedHandler>();
+        services.AddScoped<UnmarkAsAppliedHandler>();
         services.AddScoped<UpdateUserProfileHandler>();
 
         return services;
@@ -83,6 +84,22 @@ public static class DependencyInjection
     {
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<CastingRadarDbContext>();
-        await db.Database.MigrateAsync();
+        try
+        {
+            await db.Database.MigrateAsync();
+        }
+        catch (Npgsql.PostgresException ex) when (ex.SqlState == "42P07")
+        {
+            // Table already exists but not tracked in __EFMigrationsHistory.
+            // Mark all pending migrations as applied without re-executing them.
+            var applied = await db.Database.GetAppliedMigrationsAsync();
+            var pending = db.Database.GetPendingMigrations()
+                .Except(applied);
+            foreach (var migration in pending)
+            {
+                await db.Database.ExecuteSqlRawAsync(
+                    $"INSERT INTO \"__EFMigrationsHistory\" (\"MigrationId\", \"ProductVersion\") VALUES ('{migration}', '9.0.0')");
+            }
+        }
     }
 }

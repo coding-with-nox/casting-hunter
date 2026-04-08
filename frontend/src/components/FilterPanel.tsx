@@ -7,17 +7,15 @@ interface Props {
   keywords: string;
   selectedTypes: CastingType[];
   selectedRegions: SourceRegion[];
-  onlyPaid: boolean;
   onKeywordsChange: (v: string) => void;
   onToggleType: (t: CastingType) => void;
   onToggleRegion: (r: SourceRegion) => void;
-  onTogglePaid: (v: boolean) => void;
   onReset: () => void;
 }
 
 export function FilterPanel({
-  keywords, selectedTypes, selectedRegions, onlyPaid,
-  onKeywordsChange, onToggleType, onToggleRegion, onTogglePaid, onReset
+  keywords, selectedTypes, selectedRegions,
+  onKeywordsChange, onToggleType, onToggleRegion, onReset
 }: Props) {
   return (
     <aside className="w-64 flex-shrink-0 flex flex-col gap-5">
@@ -68,18 +66,6 @@ export function FilterPanel({
             </button>
           ))}
         </div>
-      </div>
-
-      <div>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={onlyPaid}
-            onChange={e => onTogglePaid(e.target.checked)}
-            className="accent-[#d4af37]"
-          />
-          <span className="text-sm text-[#9ca3af]">Solo retribuiti</span>
-        </label>
       </div>
 
       <button

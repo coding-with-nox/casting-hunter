@@ -2,7 +2,7 @@ import { CastingCard } from '../components/CastingCard';
 import { useCastingCalls } from '../hooks/useCastingCalls';
 
 export function Favorites() {
-  const { calls, loading, toggleFavorite, markApplied } = useCastingCalls();
+  const { calls, loading, toggleFavorite, markApplied, unmarkApplied } = useCastingCalls();
   const favorites = calls.filter(c => c.isFavorite);
 
   if (loading) return <div className="p-8 text-[#9ca3af]">Caricamento...</div>;
@@ -19,7 +19,7 @@ export function Favorites() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {favorites.map(c => (
-            <CastingCard key={c.id} casting={c} onToggleFavorite={toggleFavorite} onMarkApplied={markApplied} />
+            <CastingCard key={c.id} casting={c} onToggleFavorite={toggleFavorite} onMarkApplied={markApplied} onUnmarkApplied={unmarkApplied} />
           ))}
         </div>
       )}

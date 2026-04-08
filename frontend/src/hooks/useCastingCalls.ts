@@ -32,5 +32,10 @@ export function useCastingCalls(filter?: FilterState) {
     setCalls(prev => prev.map(c => c.id === id ? { ...c, isApplied: true } : c));
   }, []);
 
-  return { calls, loading, error, refetch: fetchCalls, toggleFavorite, markApplied };
+  const unmarkApplied = useCallback(async (id: string) => {
+    await castingApi.unmarkApplied(id);
+    setCalls(prev => prev.map(c => c.id === id ? { ...c, isApplied: false } : c));
+  }, []);
+
+  return { calls, loading, error, refetch: fetchCalls, toggleFavorite, markApplied, unmarkApplied };
 }

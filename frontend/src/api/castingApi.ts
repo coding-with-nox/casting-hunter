@@ -35,8 +35,23 @@ export const castingApi = {
     return request<void>(`/castings/${id}/applied`, { method: 'POST' });
   },
 
+  unmarkApplied(id: string): Promise<void> {
+    return request<void>(`/castings/${id}/applied`, { method: 'DELETE' });
+  },
+
   getSources(): Promise<SourceStatus[]> {
     return request<SourceStatus[]>('/sources');
+  },
+
+  toggleSourceEnabled(name: string, enabled: boolean): Promise<void> {
+    return request<void>(`/sources/${encodeURIComponent(name)}/enabled?enabled=${enabled}`, { method: 'PATCH' });
+  },
+
+  createSource(name: string, url: string, region: string): Promise<SourceStatus> {
+    return request<SourceStatus>('/sources', {
+      method: 'POST',
+      body: JSON.stringify({ name, url, region }),
+    });
   },
 
   scrapeAll(): Promise<{ totalFound: number; totalNew: number }> {

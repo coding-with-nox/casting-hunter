@@ -3,6 +3,7 @@ using CastingRadar.Application.Interfaces;
 using CastingRadar.Application.UseCases.GetCastingCalls;
 using CastingRadar.Application.UseCases.MarkAsApplied;
 using CastingRadar.Application.UseCases.MarkAsFavorite;
+using Microsoft.AspNetCore.Http;
 using CastingRadar.Domain.Enums;
 using CastingRadar.Domain.ValueObjects;
 using Microsoft.AspNetCore.Mvc;
@@ -68,6 +69,12 @@ public static class CastingEndpoints
         });
 
         group.MapPost("/{id:guid}/applied", async (Guid id, MarkAsAppliedHandler handler, CancellationToken ct) =>
+        {
+            var ok = await handler.HandleAsync(id, ct);
+            return ok ? Results.Ok() : Results.NotFound();
+        });
+
+        group.MapDelete("/{id:guid}/applied", async (Guid id, UnmarkAsAppliedHandler handler, CancellationToken ct) =>
         {
             var ok = await handler.HandleAsync(id, ct);
             return ok ? Results.Ok() : Results.NotFound();

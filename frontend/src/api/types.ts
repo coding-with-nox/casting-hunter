@@ -23,6 +23,7 @@ export interface CastingCall {
 export interface SourceStatus {
   name: string;
   region: SourceRegion;
+  url: string | null;
   isEnabled: boolean;
   lastScrapedAt: string | null;
   errorCount: number;

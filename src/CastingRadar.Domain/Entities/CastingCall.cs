@@ -66,6 +66,7 @@ public class CastingCall
     public void ToggleFavorite() => IsFavorite = !IsFavorite;
 
     public void MarkAsApplied() => IsApplied = true;
+    public void UnmarkAsApplied() => IsApplied = false;
 
     public static string ComputeHash(string title, string sourceUrl)
     {
