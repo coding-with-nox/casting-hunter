@@ -32,7 +32,7 @@ cd frontend && npm install && cd ..
 
 ```bash
 dotnet run --project src/CastingRadar.Api
-# API disponibile su http://localhost:5000
+# API disponibile su http://localhost:5050
 # Il database SQLite (castingradar.db) viene creato automaticamente
 ```
 
@@ -42,7 +42,7 @@ dotnet run --project src/CastingRadar.Api
 cd frontend
 npm run dev
 # App disponibile su http://localhost:5173
-# Le chiamate /api/* sono proxate automaticamente verso http://localhost:5000
+# Le chiamate /api/* sono proxate automaticamente verso http://localhost:5050
 ```
 
 ### 4. Build frontend per produzione embedded
@@ -51,7 +51,7 @@ npm run dev
 cd frontend
 npm run build
 # Output in src/CastingRadar.Api/wwwroot/
-# Dopo la build, dotnet run serve anche la SPA su http://localhost:5000
+# Dopo la build, dotnet run serve anche la SPA su http://localhost:5050
 ```
 
 ---
@@ -81,7 +81,7 @@ docker compose up -d
 ```
 Servizi avviati:
   db       → PostgreSQL 16 (interno, non esposto)
-  api      → http://localhost:5000
+  api      → http://localhost:5050
   worker   → background scraper (nessuna porta)
 ```
 
@@ -119,7 +119,7 @@ docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d
 ```
 Servizi avviati:
   db          → PostgreSQL 16 (porta 5432 esposta per DBeaver/psql)
-  api         → http://localhost:5000  (dotnet watch, sorgenti montati)
+  api         → http://localhost:5050  (dotnet watch, sorgenti montati)
   api         → porta 2222             (VSDBG remote attach)
   worker      → porta 2223             (VSDBG remote attach)
   adminer     → http://localhost:8090  (GUI database, tema dark)

@@ -17,7 +17,7 @@ services:
       context: .
       dockerfile: src/CastingRadar.Api/Dockerfile
     ports:
-      - "5000:8080"
+      - "5050:8080"
     environment:
       UsePostgres: "true"
       ConnectionStrings__DefaultConnection: "Host=db;Database=castingradar;Username=castingradar;Password=${DB_PASSWORD:-castingradar_secret}"

@@ -56,7 +56,7 @@ services:
       - domain-bin-api:/src/src/CastingRadar.Domain/bin
       - domain-obj-api:/src/src/CastingRadar.Domain/obj
     ports:
-      - "5000:8080"
+      - "5050:8080"
       - "2222:22"
     environment:
       ASPNETCORE_ENVIRONMENT: Development

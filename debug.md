@@ -20,7 +20,7 @@ docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d
 
 | Servizio | Porta locale | Descrizione |
 |----------|-------------|-------------|
-| API | `5000` | HTTP endpoint (`http://localhost:5000`) |
+| API | `5050` | HTTP endpoint (`http://localhost:5050`) |
 | API | `2222` | VSDBG remote debugger attach |
 | Worker | `2223` | VSDBG remote debugger attach |
 | PostgreSQL | `5432` | Accesso diretto da DB client |
@@ -111,23 +111,23 @@ dotnet ef migrations add NomeMigration \
 
 ```bash
 # Scraping di tutte le fonti
-curl -X POST http://localhost:5000/api/sources/scrape-all
+curl -X POST http://localhost:5050/api/sources/scrape-all
 
 # Scraping di una singola fonte
-curl -X POST http://localhost:5000/api/sources/Ticonsiglio/scrape
-curl -X POST http://localhost:5000/api/sources/iMoviez/scrape
-curl -X POST http://localhost:5000/api/sources/AttoriCasting/scrape
-curl -X POST http://localhost:5000/api/sources/Mandy/scrape
-curl -X POST http://localhost:5000/api/sources/Backstage/scrape
+curl -X POST http://localhost:5050/api/sources/Ticonsiglio/scrape
+curl -X POST http://localhost:5050/api/sources/iMoviez/scrape
+curl -X POST http://localhost:5050/api/sources/AttoriCasting/scrape
+curl -X POST http://localhost:5050/api/sources/Mandy/scrape
+curl -X POST http://localhost:5050/api/sources/Backstage/scrape
 
 # Leggi la lista casting (JSON)
-curl http://localhost:5000/api/castings | jq .
+curl http://localhost:5050/api/castings | jq .
 
 # Leggi statistiche
-curl http://localhost:5000/api/stats | jq .
+curl http://localhost:5050/api/stats | jq .
 
 # Health check
-curl http://localhost:5000/health
+curl http://localhost:5050/health
 ```
 
 ---

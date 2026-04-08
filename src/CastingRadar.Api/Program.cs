@@ -19,7 +19,7 @@ builder.Services.AddInfrastructure(builder.Configuration, usePostgres);
 
 // CORS: restrict to known origins (not wildcard)
 var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>()
-    ?? ["http://localhost:5173", "http://localhost:5000"];
+    ?? ["http://localhost:5173", "http://localhost:5050"];
 
 builder.Services.AddCors(opt =>
     opt.AddDefaultPolicy(policy =>
