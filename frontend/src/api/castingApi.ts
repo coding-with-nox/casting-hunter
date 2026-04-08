@@ -115,6 +115,10 @@ export const castingApi = {
     return request<Bando[]>('/bandi');
   },
 
+  getBando(id: string): Promise<Bando> {
+    return request<Bando>(`/bandi/${id}`);
+  },
+
   getBandiSources(): Promise<BandoSource[]> {
     return request<BandoSource[]>('/bandi/sources');
   },

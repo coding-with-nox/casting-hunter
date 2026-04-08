@@ -16,6 +16,14 @@ public static class BandiEndpoints
             return Results.Ok(bandi.Select(BandoDto.FromEntity));
         });
 
+        group.MapGet("/{id:guid}", async (Guid id, IBandoRepository repo, CancellationToken ct) =>
+        {
+            var bando = await repo.GetByIdAsync(id, ct);
+            return bando is null
+                ? Results.NotFound()
+                : Results.Ok(BandoDto.FromEntity(bando));
+        });
+
         group.MapGet("/sources", async (IBandoSourceRepository repo, CancellationToken ct) =>
         {
             var sources = await repo.GetAllAsync(ct);

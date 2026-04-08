@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Dashboard } from './pages/Dashboard';
-import { Bandi } from './pages/Bandi';
+import { BandiPhase3 } from './pages/BandiPhase3';
 import { Favorites } from './pages/Favorites';
 import { Settings } from './pages/Settings';
 import { NotificationBadge } from './components/NotificationBadge';
@@ -82,7 +82,7 @@ function App() {
 
       {/* Body */}
       <div className="flex-1 min-h-0">
-        {tab === 'bandi' && <Bandi />}
+        {tab === 'bandi' && <BandiPhase3 />}
         {tab === 'dashboard' && <Dashboard />}
         {tab === 'favorites' && <Favorites />}
         {tab === 'settings' && <Settings />}
