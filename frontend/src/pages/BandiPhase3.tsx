@@ -122,6 +122,10 @@ export function BandiPhase3() {
   const [confidenceFilter, setConfidenceFilter] = useState<ConfidenceFilter>('all');
   const [onlyPublic, setOnlyPublic] = useState(false);
   const [regioneFilter, setRegioneFilter] = useState('all');
+  const [editingSource, setEditingSource] = useState<string | null>(null);
+  const [editBaseUrl, setEditBaseUrl] = useState('');
+  const [editRegione, setEditRegione] = useState('');
+  const [savingSource, setSavingSource] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -295,6 +299,44 @@ export function BandiPhase3() {
       setWarnings([error instanceof Error ? error.message : 'Scrape bandi P3 non disponibile']);
     } finally {
       setScraping(false);
+    }
+  };
+
+  const handleEditSource = (source: BandoSource) => {
+    setEditingSource(source.name);
+    setEditBaseUrl(source.baseUrl);
+    setEditRegione(source.regione ?? '');
+  };
+
+  const handleSaveSource = async (name: string) => {
+    setSavingSource(true);
+    try {
+      await castingApi.updateBandoSource(name, { baseUrl: editBaseUrl, regione: editRegione });
+      setEditingSource(null);
+      await load();
+    } catch (error) {
+      setWarnings([error instanceof Error ? error.message : 'Errore salvataggio fonte']);
+    } finally {
+      setSavingSource(false);
+    }
+  };
+
+  const handleDeleteSource = async (name: string) => {
+    if (!confirm(`Eliminare la fonte "${name}"?`)) return;
+    try {
+      await castingApi.deleteBandoSource(name);
+      await load();
+    } catch (error) {
+      setWarnings([error instanceof Error ? error.message : 'Errore eliminazione fonte']);
+    }
+  };
+
+  const handleToggleBandoSource = async (name: string, enabled: boolean) => {
+    try {
+      await castingApi.toggleBandoSourceEnabled(name, enabled);
+      await load();
+    } catch (error) {
+      setWarnings([error instanceof Error ? error.message : 'Errore toggle fonte']);
     }
   };
 
@@ -763,7 +805,7 @@ export function BandiPhase3() {
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold text-[#f5f5f5]">{source.name}</p>
                         <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                           <span className="text-xs text-[#808080]">{source.category}</span>
@@ -772,37 +814,93 @@ export function BandiPhase3() {
                           )}
                         </div>
                       </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-xs text-[#d4af37]">P{source.priority}</p>
-                        <p className={`mt-0.5 text-xs ${source.isEnabled ? 'text-emerald-400' : 'text-[#777]'}`}>
-                          {source.isEnabled ? 'Attiva' : 'Disattivata'}
-                        </p>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleBandoSource(source.name, !source.isEnabled)}
+                          title={source.isEnabled ? 'Disattiva' : 'Attiva'}
+                          className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs transition-colors ${
+                            source.isEnabled ? 'text-emerald-400 hover:text-emerald-300' : 'text-[#555] hover:text-[#999]'
+                          }`}
+                        >
+                          {source.isEnabled ? '●' : '○'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleEditSource(source)}
+                          title="Modifica"
+                          className="w-7 h-7 flex items-center justify-center rounded-lg text-[#555] hover:text-[#d4af37] transition-colors"
+                        >
+                          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                        </button>
+                        {!source.isOfficial && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSource(source.name)}
+                            title="Elimina"
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-[#555] hover:text-red-400 transition-colors"
+                          >
+                            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6l-1 14H6L5 6" />
+                              <path d="M10 11v6M14 11v6" />
+                              <path d="M9 6V4h6v2" />
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     </div>
 
-                    {source.lastRunAt ? (
-                      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                        <span className="text-[#666]">
-                          Ultimo run: <span className="text-[#999]">{new Date(source.lastRunAt).toLocaleString('it-IT')}</span>
-                        </span>
-                        <span className="text-[#666]">
-                          Trovati: <span className="text-[#ccc]">{source.lastRunFound}</span>
-                        </span>
-                        <span className="text-[#666]">
-                          Artistici: <span className="text-[#ccc]">{source.lastRunEligible}</span>
-                        </span>
-                        <span className="text-[#666]">
-                          Nuovi: <span className={source.lastRunNew > 0 ? 'text-emerald-400' : 'text-[#ccc]'}>{source.lastRunNew}</span>
-                        </span>
-                        {source.lastRunError && (
-                          <span className="text-red-400">Errore: {source.lastRunError}</span>
-                        )}
+                    {editingSource === source.name && (
+                      <div className="mt-3 flex flex-col gap-2">
+                        <input
+                          value={editBaseUrl}
+                          onChange={e => setEditBaseUrl(e.target.value)}
+                          placeholder="URL base"
+                          className="rounded-lg border border-[#333] bg-[#0d0d0d] px-3 py-1.5 text-xs text-[#f5f5f5] outline-none focus:border-[#d4af37]/40"
+                        />
+                        <input
+                          value={editRegione}
+                          onChange={e => setEditRegione(e.target.value)}
+                          placeholder="Regione (es. Toscana)"
+                          className="rounded-lg border border-[#333] bg-[#0d0d0d] px-3 py-1.5 text-xs text-[#f5f5f5] outline-none focus:border-[#d4af37]/40"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleSaveSource(source.name)}
+                            disabled={savingSource}
+                            className="rounded-lg border border-[#d4af37]/40 bg-[#d4af37]/10 px-3 py-1 text-xs font-medium text-[#f3d67a] transition hover:bg-[#d4af37]/20 disabled:opacity-50"
+                          >
+                            {savingSource ? 'Salvataggio...' : 'Salva'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingSource(null)}
+                            className="rounded-lg border border-[#333] px-3 py-1 text-xs text-[#888] transition hover:text-[#ccc]"
+                          >
+                            Annulla
+                          </button>
+                        </div>
                       </div>
-                    ) : (
-                      <p className="mt-2 text-xs text-[#555]">Scraper mai eseguito</p>
                     )}
 
-                    <p className="mt-2 break-all text-xs text-[#555]">{source.baseUrl}</p>
+                    {source.lastRunAt ? (
+                      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-xs">
+                        <span className="text-[#555]">Run: <span className="text-[#888]">{new Date(source.lastRunAt).toLocaleString('it-IT')}</span></span>
+                        <span className="text-[#555]">Trovati: <span className="text-[#aaa]">{source.lastRunFound}</span></span>
+                        <span className="text-[#555]">Artistici: <span className="text-[#aaa]">{source.lastRunEligible}</span></span>
+                        <span className="text-[#555]">Nuovi: <span className={source.lastRunNew > 0 ? 'text-emerald-400' : 'text-[#aaa]'}>{source.lastRunNew}</span></span>
+                        {source.lastRunError && <span className="text-red-400">⚠ {source.lastRunError}</span>}
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-xs text-[#444]">Mai eseguito</p>
+                    )}
+
+                    <p className="mt-1 break-all text-[10px] text-[#444]">{source.baseUrl}</p>
                   </div>
                 ))}
               </div>

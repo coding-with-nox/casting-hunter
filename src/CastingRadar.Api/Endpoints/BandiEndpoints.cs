@@ -36,6 +36,52 @@ public static class BandiEndpoints
             return Results.Ok(sources.Select(BandoSourceDto.FromEntity));
         });
 
+        group.MapPatch("/sources/{name}/enabled", async (
+            string name,
+            bool enabled,
+            IBandoSourceRepository repo,
+            CancellationToken ct) =>
+        {
+            var source = await repo.GetByNameAsync(Uri.UnescapeDataString(name), ct);
+            if (source is null) return Results.NotFound();
+            source.SetEnabled(enabled);
+            await repo.UpdateAsync(source, ct);
+            return Results.NoContent();
+        });
+
+        group.MapPut("/sources/{name}", async (
+            string name,
+            UpdateBandoSourceRequest req,
+            IBandoSourceRepository repo,
+            CancellationToken ct) =>
+        {
+            var source = await repo.GetByNameAsync(Uri.UnescapeDataString(name), ct);
+            if (source is null) return Results.NotFound();
+            if (req.BaseUrl is not null)
+            {
+                if (!Uri.TryCreate(req.BaseUrl, UriKind.Absolute, out _))
+                    return Results.BadRequest("BaseUrl non valido");
+                source.SetBaseUrl(req.BaseUrl.Trim());
+            }
+            if (req.Regione is not null)
+                source.SetRegione(req.Regione.Trim());
+            await repo.UpdateAsync(source, ct);
+            return Results.Ok(BandoSourceDto.FromEntity(source));
+        });
+
+        group.MapDelete("/sources/{name}", async (
+            string name,
+            IBandoSourceRepository repo,
+            CancellationToken ct) =>
+        {
+            var source = await repo.GetByNameAsync(Uri.UnescapeDataString(name), ct);
+            if (source is null) return Results.NotFound();
+            if (source.IsOfficial && source.Priority <= 15)
+                return Results.BadRequest("Le fonti ufficiali P1/P2 non possono essere eliminate, solo disattivate.");
+            await repo.DeleteAsync(Uri.UnescapeDataString(name), ct);
+            return Results.NoContent();
+        });
+
         group.MapPost("/sources/curated", async (
             CreateCuratedBandoSourceRequest request,
             IBandoSourceRepository repo,
@@ -165,3 +211,5 @@ public record CreateCuratedBandoSourceRequest(
     string BaseUrl,
     int? Priority,
     bool? IsOfficial);
+
+public record UpdateBandoSourceRequest(string? BaseUrl, string? Regione);

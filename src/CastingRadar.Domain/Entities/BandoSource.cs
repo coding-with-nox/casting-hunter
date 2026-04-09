@@ -38,6 +38,8 @@ public class BandoSource
         };
 
     public void SetEnabled(bool enabled) => IsEnabled = enabled;
+    public void SetBaseUrl(string url) => BaseUrl = url;
+    public void SetRegione(string? regione) => Regione = regione;
 
     public void RecordRun(int found, int eligible, int newCount, string? error = null)
     {

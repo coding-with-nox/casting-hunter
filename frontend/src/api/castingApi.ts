@@ -124,6 +124,21 @@ export const castingApi = {
     return request<BandoSource[]>(`/bandi/sources${qs}`);
   },
 
+  toggleBandoSourceEnabled(name: string, enabled: boolean): Promise<void> {
+    return request<void>(`/bandi/sources/${encodeURIComponent(name)}/enabled?enabled=${enabled}`, { method: 'PATCH' });
+  },
+
+  updateBandoSource(name: string, data: { baseUrl?: string; regione?: string }): Promise<BandoSource> {
+    return request<BandoSource>(`/bandi/sources/${encodeURIComponent(name)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteBandoSource(name: string): Promise<void> {
+    return request<void>(`/bandi/sources/${encodeURIComponent(name)}`, { method: 'DELETE' });
+  },
+
   createCuratedBandoSource(data: { name: string; baseUrl: string; priority?: number; isOfficial?: boolean }): Promise<BandoSource> {
     return request<BandoSource>('/bandi/sources/curated', {
       method: 'POST',

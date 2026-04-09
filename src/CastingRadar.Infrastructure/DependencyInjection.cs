@@ -17,6 +17,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace CastingRadar.Infrastructure;
 
@@ -63,6 +64,9 @@ public static class DependencyInjection
         // HTTP clients
         services.AddScraperHttpClient("Scraper");
 
+        // Generic teatro scraper (used by handler for sources without a dedicated scraper)
+        services.AddScoped<IGenericTeatroBandoScraper, GenericTeatroBandoScraper>();
+
         // Bandi scrapers (P1)
         services.AddScoped<IBandoScraperStrategy, InpaBandoScraper>();
         services.AddScoped<IBandoScraperStrategy, GazzettaBandoScraper>();
@@ -86,7 +90,13 @@ public static class DependencyInjection
         services.AddScoped<ICastingScraperStrategy, BackstageScraper>();
 
         // Use cases
-        services.AddScoped<ScrapeBandiPhaseOneHandler>();
+        services.AddScoped<ScrapeBandiPhaseOneHandler>(sp =>
+            new ScrapeBandiPhaseOneHandler(
+                sp.GetRequiredService<IEnumerable<IBandoScraperStrategy>>(),
+                sp.GetRequiredService<IBandoRepository>(),
+                sp.GetRequiredService<IBandoSourceRepository>(),
+                sp.GetRequiredService<ILogger<ScrapeBandiPhaseOneHandler>>(),
+                sp.GetRequiredService<IGenericTeatroBandoScraper>()));
         services.AddScoped<ScrapeAllSourcesHandler>();
         services.AddScoped<GetCastingCallsHandler>();
         services.AddScoped<MarkAsFavoriteHandler>();

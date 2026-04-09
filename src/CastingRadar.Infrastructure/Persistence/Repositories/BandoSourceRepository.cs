@@ -26,4 +26,14 @@ public class BandoSourceRepository(CastingRadarDbContext db) : IBandoSourceRepos
         db.BandoSources.Update(source);
         await db.SaveChangesAsync(ct);
     }
+
+    public async Task DeleteAsync(string name, CancellationToken ct = default)
+    {
+        var source = await db.BandoSources.FirstOrDefaultAsync(s => s.Name == name, ct);
+        if (source is not null)
+        {
+            db.BandoSources.Remove(source);
+            await db.SaveChangesAsync(ct);
+        }
+    }
 }

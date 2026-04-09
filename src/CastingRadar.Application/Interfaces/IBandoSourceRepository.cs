@@ -8,4 +8,5 @@ public interface IBandoSourceRepository
     Task<BandoSource?> GetByNameAsync(string name, CancellationToken ct = default);
     Task AddAsync(BandoSource source, CancellationToken ct = default);
     Task UpdateAsync(BandoSource source, CancellationToken ct = default);
+    Task DeleteAsync(string name, CancellationToken ct = default);
 }

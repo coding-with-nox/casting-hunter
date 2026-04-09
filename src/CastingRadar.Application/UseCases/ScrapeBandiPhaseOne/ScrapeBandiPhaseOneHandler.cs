@@ -10,7 +10,8 @@ public class ScrapeBandiPhaseOneHandler(
     IEnumerable<IBandoScraperStrategy> scrapers,
     IBandoRepository bandoRepository,
     IBandoSourceRepository sourceRepository,
-    ILogger<ScrapeBandiPhaseOneHandler> logger)
+    ILogger<ScrapeBandiPhaseOneHandler> logger,
+    IGenericTeatroBandoScraper? genericScraper = null)
 {
     private static readonly Dictionary<string, decimal> HighSignalKeywords = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -109,7 +110,10 @@ public class ScrapeBandiPhaseOneHandler(
             logger.LogInformation("Scraping bandi source {SourceName}", source.Name);
 
             var scrapeResult = await scraper.ScrapeAsync(source, ct);
-            var items = scrapeResult.Items;
+            var today = DateTime.UtcNow.Date;
+            var items = scrapeResult.Items
+                .Where(i => i.Deadline == null || i.Deadline.Value.Date >= today)
+                .ToList();
             touchedSources.Add(source.Name);
             totalFound += items.Count;
 
@@ -166,27 +170,38 @@ public class ScrapeBandiPhaseOneHandler(
 
         foreach (var source in enabledSources.Where(source => !scraperMap.ContainsKey(source.Name)))
         {
-            logger.LogInformation("Scraping curated bando source {SourceName}", source.Name);
+            logger.LogInformation("Scraping unregistered bando source {SourceName} (category: {Category})", source.Name, source.Category);
 
             string? curatedError = null;
             List<ScrapedBandoItem> items;
             try
             {
-                items = (await ScrapeCuratedSourceAsync(source, ct)).ToList();
+                // Teatro/fondazione sources (P2) use the generic teatro scraper which tries known paths.
+                // Pure P3 curated sources use the simple link-regex fallback.
+                if (genericScraper is not null && !source.Category.Contains("P3", StringComparison.OrdinalIgnoreCase))
+                {
+                    items = (await genericScraper.ScrapeForSourceAsync(source, ct)).ToList();
+                }
+                else
+                {
+                    items = (await ScrapeCuratedSourceAsync(source, ct)).ToList();
+                }
             }
             catch (HttpRequestException ex)
             {
                 curatedError = ex.StatusCode.HasValue ? $"HTTP {(int)ex.StatusCode}" : "Endpoint non raggiungibile";
-                logger.LogWarning("Curated source {Source} HTTP error: {Msg}", source.Name, curatedError);
+                logger.LogWarning("Unregistered source {Source} HTTP error: {Msg}", source.Name, curatedError);
                 items = [];
             }
             catch (Exception ex)
             {
                 curatedError = ex.Message.Length > 200 ? ex.Message[..200] : ex.Message;
-                logger.LogError(ex, "Curated source {Source} error", source.Name);
+                logger.LogError(ex, "Unregistered source {Source} error", source.Name);
                 items = [];
             }
 
+            var todayC = DateTime.UtcNow.Date;
+            items = items.Where(i => i.Deadline == null || i.Deadline.Value.Date >= todayC).ToList();
             touchedSources.Add(source.Name);
             totalFound += items.Count;
 
