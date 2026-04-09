@@ -83,6 +83,11 @@ export interface BandoSource {
   priority: number;
   isOfficial: boolean;
   isEnabled: boolean;
+  lastRunAt: string | null;
+  lastRunFound: number;
+  lastRunEligible: number;
+  lastRunNew: number;
+  lastRunError: string | null;
 }
 
 export interface BandoScrapeResult {

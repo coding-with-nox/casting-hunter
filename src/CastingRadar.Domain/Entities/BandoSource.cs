@@ -9,6 +9,11 @@ public class BandoSource
     public int Priority { get; private set; }
     public bool IsOfficial { get; private set; }
     public bool IsEnabled { get; private set; }
+    public DateTime? LastRunAt { get; private set; }
+    public int LastRunFound { get; private set; }
+    public int LastRunEligible { get; private set; }
+    public int LastRunNew { get; private set; }
+    public string? LastRunError { get; private set; }
 
     private BandoSource() { }
 
@@ -30,4 +35,13 @@ public class BandoSource
         };
 
     public void SetEnabled(bool enabled) => IsEnabled = enabled;
+
+    public void RecordRun(int found, int eligible, int newCount, string? error = null)
+    {
+        LastRunAt = DateTime.UtcNow;
+        LastRunFound = found;
+        LastRunEligible = eligible;
+        LastRunNew = newCount;
+        LastRunError = error;
+    }
 }

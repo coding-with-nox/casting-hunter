@@ -118,6 +118,21 @@ namespace CastingRadar.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsOfficial")
                         .HasColumnType("boolean");
 
+                    b.Property<DateTime?>("LastRunAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("LastRunEligible")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("LastRunError")
+                        .HasColumnType("text");
+
+                    b.Property<int>("LastRunFound")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("LastRunNew")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");

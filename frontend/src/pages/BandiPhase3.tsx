@@ -737,20 +737,52 @@ export function BandiPhase3() {
             ) : (
               <div className="flex flex-col gap-2">
                 {sources.map(source => (
-                  <div key={source.name} className="rounded-xl border border-[#222] bg-[#101010] px-4 py-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
+                  <div
+                    key={source.name}
+                    className={`rounded-xl border bg-[#101010] px-4 py-3 ${
+                      source.lastRunError
+                        ? 'border-red-800/40'
+                        : source.lastRunAt
+                          ? 'border-emerald-800/30'
+                          : 'border-[#222]'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
                         <p className="text-sm font-semibold text-[#f5f5f5]">{source.name}</p>
-                        <p className="mt-1 text-xs text-[#808080]">{source.category}</p>
+                        <p className="mt-0.5 text-xs text-[#808080]">{source.category}</p>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex-shrink-0">
                         <p className="text-xs text-[#d4af37]">P{source.priority}</p>
-                        <p className={`mt-1 text-xs ${source.isEnabled ? 'text-emerald-400' : 'text-[#777]'}`}>
+                        <p className={`mt-0.5 text-xs ${source.isEnabled ? 'text-emerald-400' : 'text-[#777]'}`}>
                           {source.isEnabled ? 'Attiva' : 'Disattivata'}
                         </p>
                       </div>
                     </div>
-                    <p className="mt-3 break-all text-xs text-[#666]">{source.baseUrl}</p>
+
+                    {source.lastRunAt ? (
+                      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                        <span className="text-[#666]">
+                          Ultimo run: <span className="text-[#999]">{new Date(source.lastRunAt).toLocaleString('it-IT')}</span>
+                        </span>
+                        <span className="text-[#666]">
+                          Trovati: <span className="text-[#ccc]">{source.lastRunFound}</span>
+                        </span>
+                        <span className="text-[#666]">
+                          Artistici: <span className="text-[#ccc]">{source.lastRunEligible}</span>
+                        </span>
+                        <span className="text-[#666]">
+                          Nuovi: <span className={source.lastRunNew > 0 ? 'text-emerald-400' : 'text-[#ccc]'}>{source.lastRunNew}</span>
+                        </span>
+                        {source.lastRunError && (
+                          <span className="text-red-400">Errore: {source.lastRunError}</span>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-xs text-[#555]">Scraper mai eseguito</p>
+                    )}
+
+                    <p className="mt-2 break-all text-xs text-[#555]">{source.baseUrl}</p>
                   </div>
                 ))}
               </div>

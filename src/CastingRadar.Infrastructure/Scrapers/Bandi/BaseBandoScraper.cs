@@ -13,16 +13,32 @@ public abstract class BaseBandoScraper(IHttpClientFactory httpClientFactory, ILo
     public abstract string SourceName { get; }
     protected virtual string HttpClientName => "Scraper";
 
-    public async Task<IEnumerable<ScrapedBandoItem>> ScrapeAsync(BandoSource source, CancellationToken ct = default)
+    public async Task<BandoScrapeSourceResult> ScrapeAsync(BandoSource source, CancellationToken ct = default)
     {
         try
         {
-            return await ScrapeInternalAsync(source, ct);
+            var items = (await ScrapeInternalAsync(source, ct)).ToList();
+            if (items.Count == 0)
+                logger.LogWarning("Bando scraper {Source} returned no items", SourceName);
+            return BandoScrapeSourceResult.Ok(items);
+        }
+        catch (HttpRequestException ex)
+        {
+            var msg = ex.StatusCode.HasValue
+                ? $"HTTP {(int)ex.StatusCode}"
+                : $"Endpoint non raggiungibile";
+            logger.LogWarning("Bando scraper {Source} HTTP error: {Msg}", SourceName, msg);
+            return BandoScrapeSourceResult.Fail(msg);
+        }
+        catch (TaskCanceledException)
+        {
+            logger.LogWarning("Bando scraper {Source} timed out", SourceName);
+            return BandoScrapeSourceResult.Fail("Timeout");
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Bando scraper {Source} encountered an error", SourceName);
-            return [];
+            return BandoScrapeSourceResult.Fail(ex.Message.Length > 200 ? ex.Message[..200] : ex.Message);
         }
     }
 

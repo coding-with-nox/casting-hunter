@@ -8,7 +8,12 @@ public record BandoSourceDto(
     string BaseUrl,
     int Priority,
     bool IsOfficial,
-    bool IsEnabled)
+    bool IsEnabled,
+    DateTime? LastRunAt,
+    int LastRunFound,
+    int LastRunEligible,
+    int LastRunNew,
+    string? LastRunError)
 {
     public static BandoSourceDto FromEntity(BandoSource s) => new(
         s.Name,
@@ -16,5 +21,10 @@ public record BandoSourceDto(
         s.BaseUrl,
         s.Priority,
         s.IsOfficial,
-        s.IsEnabled);
+        s.IsEnabled,
+        s.LastRunAt,
+        s.LastRunFound,
+        s.LastRunEligible,
+        s.LastRunNew,
+        s.LastRunError);
 }

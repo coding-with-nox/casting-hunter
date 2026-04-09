@@ -20,4 +20,10 @@ public class BandoSourceRepository(CastingRadarDbContext db) : IBandoSourceRepos
         db.BandoSources.Add(source);
         await db.SaveChangesAsync(ct);
     }
+
+    public async Task UpdateAsync(BandoSource source, CancellationToken ct = default)
+    {
+        db.BandoSources.Update(source);
+        await db.SaveChangesAsync(ct);
+    }
 }

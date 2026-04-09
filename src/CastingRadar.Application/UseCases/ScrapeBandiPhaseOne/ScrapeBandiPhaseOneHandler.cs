@@ -108,9 +108,13 @@ public class ScrapeBandiPhaseOneHandler(
 
             logger.LogInformation("Scraping bandi source {SourceName}", source.Name);
 
-            var items = (await scraper.ScrapeAsync(source, ct)).ToList();
+            var scrapeResult = await scraper.ScrapeAsync(source, ct);
+            var items = scrapeResult.Items;
             touchedSources.Add(source.Name);
             totalFound += items.Count;
+
+            var sourceEligible = 0;
+            var sourceNew = 0;
 
             foreach (var item in items)
             {
@@ -121,6 +125,7 @@ public class ScrapeBandiPhaseOneHandler(
                 }
 
                 totalEligible++;
+                sourceEligible++;
 
                 var issuerName = item.IssuerName ?? InferIssuerName(source.Name, item.Title, item.BodyText);
                 var discipline = InferDiscipline(item.Title, item.BodyText);
@@ -152,15 +157,41 @@ public class ScrapeBandiPhaseOneHandler(
 
                 await bandoRepository.AddAsync(bando, ct);
                 totalNew++;
+                sourceNew++;
             }
+
+            source.RecordRun(items.Count, sourceEligible, sourceNew, scrapeResult.Error);
+            await sourceRepository.UpdateAsync(source, ct);
         }
 
         foreach (var source in enabledSources.Where(source => !scraperMap.ContainsKey(source.Name)))
         {
             logger.LogInformation("Scraping curated bando source {SourceName}", source.Name);
-            var items = (await ScrapeCuratedSourceAsync(source, ct)).ToList();
+
+            string? curatedError = null;
+            List<ScrapedBandoItem> items;
+            try
+            {
+                items = (await ScrapeCuratedSourceAsync(source, ct)).ToList();
+            }
+            catch (HttpRequestException ex)
+            {
+                curatedError = ex.StatusCode.HasValue ? $"HTTP {(int)ex.StatusCode}" : "Endpoint non raggiungibile";
+                logger.LogWarning("Curated source {Source} HTTP error: {Msg}", source.Name, curatedError);
+                items = [];
+            }
+            catch (Exception ex)
+            {
+                curatedError = ex.Message.Length > 200 ? ex.Message[..200] : ex.Message;
+                logger.LogError(ex, "Curated source {Source} error", source.Name);
+                items = [];
+            }
+
             touchedSources.Add(source.Name);
             totalFound += items.Count;
+
+            var sourceEligibleC = 0;
+            var sourceNewC = 0;
 
             foreach (var item in items)
             {
@@ -171,6 +202,7 @@ public class ScrapeBandiPhaseOneHandler(
                 }
 
                 totalEligible++;
+                sourceEligibleC++;
 
                 var issuerName = item.IssuerName ?? source.Name;
                 var discipline = InferDiscipline(item.Title, item.BodyText);
@@ -202,7 +234,11 @@ public class ScrapeBandiPhaseOneHandler(
 
                 await bandoRepository.AddAsync(bando, ct);
                 totalNew++;
+                sourceNewC++;
             }
+
+            source.RecordRun(items.Count, sourceEligibleC, sourceNewC, curatedError);
+            await sourceRepository.UpdateAsync(source, ct);
         }
 
         return new BandoScrapeResult(totalFound, totalEligible, totalNew, touchedSources);

@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from 'react';
 import type { CastingCall } from '../api/types';
 import { SourceBadge } from './SourceBadge';
 
@@ -11,23 +10,11 @@ interface Props {
 }
 
 export function CastingCard({ casting, onToggleFavorite, onMarkApplied, onUnmarkApplied, onToggleHidden }: Props) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
   const deadline = casting.deadline
     ? new Date(casting.deadline).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
     : null;
 
   const isExpired = casting.deadline ? new Date(casting.deadline) < new Date() : false;
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [menuOpen]);
 
   return (
     <div className={`bg-[#1e1e1e] border rounded-xl p-4 flex flex-col gap-3 transition-all ${
@@ -84,41 +71,6 @@ export function CastingCard({ casting, onToggleFavorite, onMarkApplied, onUnmark
               <path d="M8.5 8.5l7 7" />
             </svg>
           </button>
-          {/* Menu nascondi/scarta */}
-          <div className="relative hidden" ref={menuRef}>
-            <button
-              onClick={() => setMenuOpen(o => !o)}
-              title="Opzioni"
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-[#444] hover:text-[#9ca3af] hover:bg-[#2a2a2a] transition-colors text-xs"
-            >
-              ···
-            </button>
-            {menuOpen && (
-              <div className="absolute right-0 top-8 z-20 bg-[#1a1a1a] border border-[#333] rounded-lg shadow-xl py-1 w-44">
-                <button
-                  onClick={() => { onToggleHidden(casting.id); setMenuOpen(false); }}
-                  className="w-full text-left px-3 py-2 text-sm text-[#9ca3af] hover:bg-[#2a2a2a] hover:text-[#f5f5f5] flex items-center gap-2"
-                >
-                  <span>🚫</span> Scarta casting
-                </button>
-                {!casting.isApplied ? (
-                  <button
-                    onClick={() => { onMarkApplied(casting.id); setMenuOpen(false); }}
-                    className="w-full text-left px-3 py-2 text-sm text-[#9ca3af] hover:bg-[#2a2a2a] hover:text-emerald-400 flex items-center gap-2"
-                  >
-                    <span>✓</span> Segna come candidata
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => { onUnmarkApplied(casting.id); setMenuOpen(false); }}
-                    className="w-full text-left px-3 py-2 text-sm text-[#9ca3af] hover:bg-[#2a2a2a] hover:text-red-400 flex items-center gap-2"
-                  >
-                    <span>✕</span> Annulla candidatura
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
