@@ -119,8 +119,9 @@ export const castingApi = {
     return request<Bando>(`/bandi/${id}`);
   },
 
-  getBandiSources(): Promise<BandoSource[]> {
-    return request<BandoSource[]>('/bandi/sources');
+  getBandiSources(regione?: string): Promise<BandoSource[]> {
+    const qs = regione ? `?regione=${encodeURIComponent(regione)}` : '';
+    return request<BandoSource[]>(`/bandi/sources${qs}`);
   },
 
   createCuratedBandoSource(data: { name: string; baseUrl: string; priority?: number; isOfficial?: boolean }): Promise<BandoSource> {

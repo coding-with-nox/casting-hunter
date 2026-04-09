@@ -118,6 +118,9 @@ namespace CastingRadar.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsOfficial")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("Regione")
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("LastRunAt")
                         .HasColumnType("timestamp with time zone");
 

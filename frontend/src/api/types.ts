@@ -83,6 +83,7 @@ export interface BandoSource {
   priority: number;
   isOfficial: boolean;
   isEnabled: boolean;
+  regione: string | null;
   lastRunAt: string | null;
   lastRunFound: number;
   lastRunEligible: number;

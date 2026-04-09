@@ -72,22 +72,21 @@ namespace CastingRadar.Infrastructure.Persistence.Migrations
                 column: "Name",
                 unique: true);
 
-            migrationBuilder.InsertData(
-                table: "BandoSources",
-                columns: new[] { "Id", "BaseUrl", "Category", "IsEnabled", "IsOfficial", "Name", "Priority" },
-                values: new object[,]
-                {
-                    { 1, "https://www.inpa.gov.it/bandi-e-avvisi/", "P1 - Fonti nazionali", true, true, "inPA - bandi e avvisi", 1 },
-                    { 2, "https://www.gazzettaufficiale.it/gazzetta/concorsi/", "P1 - Fonti nazionali", true, true, "Gazzetta Ufficiale - 4a serie concorsi", 2 },
-                    { 3, "https://spettacolo.cultura.gov.it/", "P1 - Fonti nazionali", true, true, "MiC Spettacolo", 3 },
-                    { 4, "https://spettacolo.cultura.gov.it/fondazioni-liriche/", "P1 - Fonti nazionali", true, true, "MiC - fondazioni lirico-sinfoniche ed elenchi organismi", 4 },
-                    { 5, "https://www.teatroallascala.org/", "P2 - Teatri e fondazioni ad alta resa", true, true, "Teatro alla Scala", 10 },
-                    { 6, "https://www.operaroma.it/", "P2 - Teatri e fondazioni ad alta resa", true, true, "Teatro dell Opera di Roma", 11 },
-                    { 7, "https://www.tcbo.it/", "P2 - Teatri e fondazioni ad alta resa", true, true, "Teatro Comunale di Bologna", 12 },
-                    { 8, "https://www.teatrosancarlo.it/", "P2 - Teatri e fondazioni ad alta resa", true, true, "Teatro di San Carlo", 13 },
-                    { 9, "https://www.teatromassimo.it/", "P2 - Teatri e fondazioni ad alta resa", true, true, "Teatro Massimo", 14 },
-                    { 10, "https://www.teatrostabiletorino.it/", "P2 - Teatri e fondazioni ad alta resa", true, true, "Teatro Stabile di Torino", 15 }
-                });
+            // Raw SQL to avoid EF model resolution issues when Designer file is absent
+            migrationBuilder.Sql(@"
+INSERT INTO ""BandoSources"" (""Id"", ""BaseUrl"", ""Category"", ""IsEnabled"", ""IsOfficial"", ""Name"", ""Priority"") VALUES
+(1,  'https://www.inpa.gov.it/bandi-e-avvisi/',                         'P1 - Fonti nazionali',                 true, true, 'inPA - bandi e avvisi', 1),
+(2,  'https://www.gazzettaufficiale.it/gazzetta/concorsi/',             'P1 - Fonti nazionali',                 true, true, 'Gazzetta Ufficiale - 4a serie concorsi', 2),
+(3,  'https://spettacolo.cultura.gov.it/',                              'P1 - Fonti nazionali',                 true, true, 'MiC Spettacolo', 3),
+(4,  'https://spettacolo.cultura.gov.it/fondazioni-liriche/',           'P1 - Fonti nazionali',                 true, true, 'MiC - fondazioni lirico-sinfoniche ed elenchi organismi', 4),
+(5,  'https://www.teatroallascala.org/',                                'P2 - Teatri e fondazioni ad alta resa', true, true, 'Teatro alla Scala', 10),
+(6,  'https://www.operaroma.it/',                                       'P2 - Teatri e fondazioni ad alta resa', true, true, 'Teatro dell Opera di Roma', 11),
+(7,  'https://www.tcbo.it/',                                            'P2 - Teatri e fondazioni ad alta resa', true, true, 'Teatro Comunale di Bologna', 12),
+(8,  'https://www.teatrosancarlo.it/',                                  'P2 - Teatri e fondazioni ad alta resa', true, true, 'Teatro di San Carlo', 13),
+(9,  'https://www.teatromassimo.it/',                                   'P2 - Teatri e fondazioni ad alta resa', true, true, 'Teatro Massimo', 14),
+(10, 'https://www.teatrostabiletorino.it/',                             'P2 - Teatri e fondazioni ad alta resa', true, true, 'Teatro Stabile di Torino', 15)
+ON CONFLICT (""Id"") DO NOTHING;
+");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)

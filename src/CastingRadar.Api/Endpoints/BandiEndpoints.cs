@@ -25,9 +25,14 @@ public static class BandiEndpoints
                 : Results.Ok(BandoDto.FromEntity(bando));
         });
 
-        group.MapGet("/sources", async (IBandoSourceRepository repo, CancellationToken ct) =>
+        group.MapGet("/sources", async (
+            IBandoSourceRepository repo,
+            string? regione,
+            CancellationToken ct) =>
         {
             var sources = await repo.GetAllAsync(ct);
+            if (!string.IsNullOrWhiteSpace(regione))
+                sources = sources.Where(s => string.Equals(s.Regione, regione, StringComparison.OrdinalIgnoreCase));
             return Results.Ok(sources.Select(BandoSourceDto.FromEntity));
         });
 
@@ -76,7 +81,7 @@ public static class BandiEndpoints
 
         group.MapPost("/scrape-p2", async (ScrapeBandiPhaseOneHandler handler, CancellationToken ct) =>
         {
-            var result = await handler.HandleAsync(10, 15, ct);
+            var result = await handler.HandleAsync(10, 19, ct);
             return Results.Ok(BandoScrapeResultDto.Create(
                 totalFound: result.TotalFound,
                 totalEligible: result.TotalEligible,

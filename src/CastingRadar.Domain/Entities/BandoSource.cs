@@ -9,6 +9,7 @@ public class BandoSource
     public int Priority { get; private set; }
     public bool IsOfficial { get; private set; }
     public bool IsEnabled { get; private set; }
+    public string? Regione { get; private set; }
     public DateTime? LastRunAt { get; private set; }
     public int LastRunFound { get; private set; }
     public int LastRunEligible { get; private set; }
@@ -23,7 +24,8 @@ public class BandoSource
         string baseUrl,
         int priority,
         bool isOfficial = true,
-        bool isEnabled = true) =>
+        bool isEnabled = true,
+        string? regione = null) =>
         new()
         {
             Name = name,
@@ -31,7 +33,8 @@ public class BandoSource
             BaseUrl = baseUrl,
             Priority = priority,
             IsOfficial = isOfficial,
-            IsEnabled = isEnabled
+            IsEnabled = isEnabled,
+            Regione = regione
         };
 
     public void SetEnabled(bool enabled) => IsEnabled = enabled;

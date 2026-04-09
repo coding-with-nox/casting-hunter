@@ -121,6 +121,7 @@ export function BandiPhase3() {
   const [sortMode, setSortMode] = useState<SortMode>('recent');
   const [confidenceFilter, setConfidenceFilter] = useState<ConfidenceFilter>('all');
   const [onlyPublic, setOnlyPublic] = useState(false);
+  const [regioneFilter, setRegioneFilter] = useState('all');
 
   const load = async () => {
     setLoading(true);
@@ -172,6 +173,8 @@ export function BandiPhase3() {
     .filter(bando => bando.status === 'Da rivedere')
     .sort((left, right) => left.confidenceScore - right.confidenceScore);
   const curatedSources = sources.filter(source => source.category.includes('P3'));
+  const regioneOptions = Array.from(new Set(sources.map(s => s.regione).filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b));
+  const filteredSources = regioneFilter === 'all' ? sources : sources.filter(s => s.regione === regioneFilter);
 
   const filteredBandi = [...bandi]
     .filter(bando => {
@@ -221,7 +224,7 @@ export function BandiPhase3() {
   useEffect(() => {
     if (!selectedBandoId) return;
 
-    const fallback = filteredBandi.find(bando => bando.id === selectedBandoId) ?? null;
+    const fallback = bandi.find(bando => bando.id === selectedBandoId) ?? null;
     if (fallback) setSelectedBando(fallback);
 
     let active = true;
@@ -242,7 +245,7 @@ export function BandiPhase3() {
     return () => {
       active = false;
     };
-  }, [filteredBandi, selectedBandoId]);
+  }, [selectedBandoId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleScrape = async () => {
     setScraping(true);
@@ -702,7 +705,19 @@ export function BandiPhase3() {
 
         <section className="grid grid-cols-1 gap-5 xl:grid-cols-[0.9fr_1.1fr] items-start">
           <div className="rounded-xl border border-[#1e1e1e] bg-[#141414] p-5">
-            <h3 className="mb-4 text-xs font-semibold uppercase tracking-wider text-[#555]">Registry fonti</h3>
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-[#555]">Registry fonti</h3>
+              <select
+                value={regioneFilter}
+                onChange={e => setRegioneFilter(e.target.value)}
+                className="rounded-lg border border-[#262626] bg-[#101010] px-2 py-1 text-xs text-[#d0d0d0] outline-none focus:border-[#d4af37]/40"
+              >
+                <option value="all">Tutte le regioni</option>
+                {regioneOptions.map(r => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            </div>
             <div className="mb-4 rounded-xl border border-[#234331] bg-[#101810] p-4">
               <p className="text-sm font-semibold text-[#e8f6ec]">Aggiungi fonte curata P3</p>
               <p className="mt-1 text-sm text-[#8fb39b]">Solo whitelist manuale. Nessun crawling libero del web.</p>
@@ -730,13 +745,13 @@ export function BandiPhase3() {
               </div>
             </div>
 
-            {sources.length === 0 ? (
+            {filteredSources.length === 0 ? (
               <div className="rounded-lg border border-[#222] bg-[#101010] px-4 py-3 text-sm text-[#888]">
-                Nessuna fonte bandi disponibile dal backend.
+                {sources.length === 0 ? 'Nessuna fonte bandi disponibile dal backend.' : 'Nessuna fonte per questa regione.'}
               </div>
             ) : (
               <div className="flex flex-col gap-2">
-                {sources.map(source => (
+                {filteredSources.map(source => (
                   <div
                     key={source.name}
                     className={`rounded-xl border bg-[#101010] px-4 py-3 ${
@@ -750,7 +765,12 @@ export function BandiPhase3() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-[#f5f5f5]">{source.name}</p>
-                        <p className="mt-0.5 text-xs text-[#808080]">{source.category}</p>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                          <span className="text-xs text-[#808080]">{source.category}</span>
+                          {source.regione && (
+                            <span className="rounded-full bg-[#1e1e2e] border border-[#333] px-1.5 py-0.5 text-[10px] text-[#9ca3af]">{source.regione}</span>
+                          )}
+                        </div>
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className="text-xs text-[#d4af37]">P{source.priority}</p>
