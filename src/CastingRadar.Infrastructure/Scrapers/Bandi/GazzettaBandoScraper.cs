@@ -35,10 +35,12 @@ public class GazzettaBandoScraper(IHttpClientFactory httpClientFactory, ILogger<
         foreach (var link in links)
         {
             var bodyText = link.Title;
+            DateTime? deadline = null;
             try
             {
                 var detail = await LoadDocumentAsync(link.Url!, ct);
                 bodyText = CleanText(detail.QuerySelector("main, article, .atto, .testo, body")?.TextContent);
+                deadline = ExtractItalianDateFromText(bodyText);
             }
             catch
             {
@@ -50,6 +52,7 @@ public class GazzettaBandoScraper(IHttpClientFactory httpClientFactory, ILogger<
                 SourceUrl: link.Url!,
                 BodyText: bodyText,
                 PublishedAt: ExtractIssueDate(link.Url!),
+                Deadline: deadline,
                 IssuerName: "Gazzetta Ufficiale"));
         }
 

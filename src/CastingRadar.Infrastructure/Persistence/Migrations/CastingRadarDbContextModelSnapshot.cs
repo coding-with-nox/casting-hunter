@@ -22,6 +22,29 @@ namespace CastingRadar.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("CastingRadar.Domain.Entities.BandoKeywordExclusion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Word")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Word")
+                        .IsUnique();
+
+                    b.ToTable("BandoKeywordExclusions");
+                });
+
             modelBuilder.Entity("CastingRadar.Domain.Entities.Bando", b =>
                 {
                     b.Property<Guid>("Id")
@@ -260,6 +283,56 @@ namespace CastingRadar.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("Sources");
+                });
+
+            modelBuilder.Entity("CastingRadar.Domain.Entities.TeatroContact", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContactPageUrl")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Phone")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Regione")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ScrapedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TeatroName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Website")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TeatroName")
+                        .IsUnique();
+
+                    b.ToTable("TeatroContacts");
                 });
 
             modelBuilder.Entity("CastingRadar.Domain.Entities.UserProfile", b =>

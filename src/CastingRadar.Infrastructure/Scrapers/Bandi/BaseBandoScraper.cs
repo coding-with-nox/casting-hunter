@@ -86,23 +86,51 @@ public abstract class BaseBandoScraper(IHttpClientFactory httpClientFactory, ILo
     protected static DateTime? ExtractItalianDateFromText(string? text)
     {
         if (string.IsNullOrWhiteSpace(text))
-        {
             return null;
+
+        // Patterns preceded by deadline keywords (must be checked before bare dates)
+        // Group 1: dd/mm/yyyy  or  dd.mm.yyyy  or  dd-mm-yyyy
+        // Group 2: dd MMMM yyyy  (Italian month name)
+        var deadlinePatterns = new[]
+        {
+            // "entro il", "non oltre il", "entro e non oltre", "scadenza:", "termine:", "chiusura:", "presentazione domande entro"
+            @"(?:entro(?:\s+e\s+non\s+oltre)?(?:\s+il)?|non\s+oltre(?:\s+il)?|scadenza[:\s]+|termine[:\s]+|chiusura[:\s]+|presentazione.*?entro(?:\s+il)?|domande.*?entro(?:\s+il)?|fa\s+pervenire.*?entro(?:\s+il)?)\s*(?<date>\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}|\d{1,2}\s+[A-Za-zÀ-ÿ]+\s+\d{4})",
+            // "scade il", "scade entro"
+            @"scade(?:\s+entro)?(?:\s+il)?\s+(?<date>\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}|\d{1,2}\s+[A-Za-zÀ-ÿ]+\s+\d{4})",
+            // bare "dd MMMM yyyy" (fallback, lower priority)
+            @"(?<date>\d{1,2}\s+(?:gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+\d{4})",
+        };
+
+        var itCulture = CultureInfo.GetCultureInfo("it-IT");
+
+        foreach (var pattern in deadlinePatterns)
+        {
+            var match = Regex.Match(text, pattern, RegexOptions.IgnoreCase);
+            if (!match.Success)
+                continue;
+
+            var raw = match.Groups["date"].Value.Trim();
+
+            // Normalize slashes/dots to dashes so TryParse handles dd-MM-yyyy
+            var normalized = Regex.Replace(raw, @"[/.]", "-");
+
+            if (DateTime.TryParse(normalized, itCulture, DateTimeStyles.AssumeLocal, out var parsed)
+                && parsed.Year >= 2020 && parsed.Year <= 2035)
+            {
+                return parsed;
+            }
+
+            // Try explicit dd-MM-yyyy format for numeric dates
+            if (DateTime.TryParseExact(normalized,
+                ["d-M-yyyy", "d-M-yy", "dd-MM-yyyy", "dd-MM-yy"],
+                itCulture, DateTimeStyles.AssumeLocal, out var parsed2)
+                && parsed2.Year >= 2020 && parsed2.Year <= 2035)
+            {
+                return parsed2;
+            }
         }
 
-        var match = Regex.Match(
-            text,
-            @"(?:(?:scade(?:\s+il)?|chiusura|entro(?:\s+e\s+non\s+oltre)?|apertura|pubblicato\s+il|aggiornato\s+l[' ]?)\s*)?(?<date>\d{1,2}\s+[A-Za-zÀ-ÿ'`]+\s+\d{4})",
-            RegexOptions.IgnoreCase);
-
-        if (!match.Success)
-        {
-            return null;
-        }
-
-        return DateTime.TryParse(match.Groups["date"].Value, CultureInfo.GetCultureInfo("it-IT"), DateTimeStyles.AssumeLocal, out var parsed)
-            ? parsed
-            : null;
+        return null;
     }
 
     protected abstract Task<IEnumerable<ScrapedBandoItem>> ScrapeInternalAsync(BandoSource source, CancellationToken ct);

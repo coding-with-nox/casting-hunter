@@ -33,10 +33,12 @@ public class ScrapeAllSourcesHandler(
                 var calls = (await scraper.ScrapeAsync(filter, ct)).ToList();
                 totalFound += calls.Count;
 
+                var seenHashes = new HashSet<string>();
                 var newCalls = new List<CastingCall>();
                 foreach (var call in calls)
                 {
-                    if (!await castingRepository.ExistsByHashAsync(call.ContentHash, ct))
+                    if (seenHashes.Add(call.ContentHash)
+                        && !await castingRepository.ExistsByHashAsync(call.ContentHash, ct))
                         newCalls.Add(call);
                 }
 
@@ -89,10 +91,12 @@ public class ScrapeAllSourcesHandler(
                 var calls = (await ScrapeGenericAsync(source, filter, ct)).ToList();
                 totalFound += calls.Count;
 
+                var seenHashes = new HashSet<string>();
                 var newCalls = new List<CastingCall>();
                 foreach (var call in calls)
                 {
-                    if (!await castingRepository.ExistsByHashAsync(call.ContentHash, ct))
+                    if (seenHashes.Add(call.ContentHash)
+                        && !await castingRepository.ExistsByHashAsync(call.ContentHash, ct))
                         newCalls.Add(call);
                 }
 

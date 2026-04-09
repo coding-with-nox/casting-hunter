@@ -11,7 +11,8 @@ public class ScrapeBandiPhaseOneHandler(
     IBandoRepository bandoRepository,
     IBandoSourceRepository sourceRepository,
     ILogger<ScrapeBandiPhaseOneHandler> logger,
-    IGenericTeatroBandoScraper? genericScraper = null)
+    IGenericTeatroBandoScraper? genericScraper = null,
+    IBandoKeywordExclusionRepository? exclusionRepository = null)
 {
     private static readonly Dictionary<string, decimal> HighSignalKeywords = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -90,6 +91,10 @@ public class ScrapeBandiPhaseOneHandler(
 
     public async Task<BandoScrapeResult> HandleAsync(int minPriority, int maxPriority, CancellationToken ct = default)
     {
+        var userExclusions = exclusionRepository is not null
+            ? (await exclusionRepository.GetAllAsync(ct)).Select(e => e.Word).ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         var enabledSources = (await sourceRepository.GetAllAsync(ct))
             .Where(source => source.IsEnabled && source.Priority >= minPriority && source.Priority <= maxPriority)
             .ToList();
@@ -123,7 +128,7 @@ public class ScrapeBandiPhaseOneHandler(
             foreach (var item in items)
             {
                 var text = CleanText($"{item.Title} {item.BodyText}");
-                if (!IsArtistic(text))
+                if (!IsArtistic(text) || userExclusions.Any(w => text.ToLowerInvariant().Contains(w)))
                 {
                     continue;
                 }
@@ -211,7 +216,7 @@ public class ScrapeBandiPhaseOneHandler(
             foreach (var item in items)
             {
                 var text = CleanText($"{item.Title} {item.BodyText}");
-                if (!IsArtistic(text))
+                if (!IsArtistic(text) || userExclusions.Any(w => text.ToLowerInvariant().Contains(w)))
                 {
                     continue;
                 }

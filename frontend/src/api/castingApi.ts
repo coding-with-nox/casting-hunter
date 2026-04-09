@@ -1,10 +1,16 @@
-import type { BandiPlan, Bando, BandoScrapeResult, BandoSource, CastingCall, FilterState, SourceStatus, Stats, UserProfile } from './types';
+import type { BandiPlan, Bando, BandoKeywordExclusion, BandoScrapeResult, BandoSource, CastingCall, FilterState, SourceStatus, Stats, TeatroContact, TeatroScrapeResult, UserProfile } from './types';
+import { getAuthToken, refreshAuthToken } from '../auth/keycloak';
 
 const BASE = '/api';
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  await refreshAuthToken();
+  const token = getAuthToken();
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     ...options,
   });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
@@ -164,5 +170,46 @@ export const castingApi = {
 
   scrapeBandiP3(): Promise<BandoScrapeResult> {
     return request<BandoScrapeResult>('/bandi/scrape-p3', { method: 'POST' });
+  },
+
+  getExclusions(): Promise<BandoKeywordExclusion[]> {
+    return request<BandoKeywordExclusion[]>('/bandi/exclusions');
+  },
+
+  addExclusion(word: string): Promise<{ word: string }> {
+    return request<{ word: string }>('/bandi/exclusions', {
+      method: 'POST',
+      body: JSON.stringify({ word }),
+    });
+  },
+
+  deleteExclusion(word: string): Promise<void> {
+    return request<void>(`/bandi/exclusions/${encodeURIComponent(word)}`, { method: 'DELETE' });
+  },
+
+  // ── Teatro contacts ──────────────────────────────────────────────────────
+  getTeatroContacts(regione?: string): Promise<TeatroContact[]> {
+    const qs = regione ? `?regione=${encodeURIComponent(regione)}` : '';
+    return request<TeatroContact[]>(`/teatri/contatti${qs}`);
+  },
+
+  scrapeTeatroContacts(regione?: string): Promise<TeatroScrapeResult> {
+    const qs = regione ? `?regione=${encodeURIComponent(regione)}` : '';
+    return request<TeatroScrapeResult>(`/teatri/contatti/scrape${qs}`, { method: 'POST' });
+  },
+
+  updateTeatroContact(name: string, data: { website?: string; email?: string; phone?: string; address?: string; notes?: string }): Promise<TeatroContact> {
+    return request<TeatroContact>(`/teatri/contatti/${encodeURIComponent(name)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteTeatroContact(name: string): Promise<void> {
+    return request<void>(`/teatri/contatti/${encodeURIComponent(name)}`, { method: 'DELETE' });
+  },
+
+  getTeatroRegioni(): Promise<string[]> {
+    return request<string[]>('/teatri/regioni');
   },
 };

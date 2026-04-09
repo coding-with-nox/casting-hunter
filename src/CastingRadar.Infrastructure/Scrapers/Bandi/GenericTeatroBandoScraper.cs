@@ -56,6 +56,10 @@ public class GenericTeatroBandoScraper(IHttpClientFactory httpClientFactory, ILo
                     })
                     .Where(item => !string.IsNullOrWhiteSpace(item.Title)
                                    && !string.IsNullOrWhiteSpace(item.Url)
+                                   && !item.Url!.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase)
+                                   && !item.Title.Contains('@')           // skip email-as-link-text
+                                   && !item.Title.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                                   && item.Title.Length >= 10             // skip single-word / very short labels
                                    && seen.Add(item.Url!))
                     .Where(item => TitleKeywords.Any(kw => item.Title.Contains(kw, StringComparison.OrdinalIgnoreCase)))
                     .Take(8)

@@ -51,8 +51,19 @@ public class CastingRepository(CastingRadarDbContext db) : ICastingRepository
 
     public async Task AddRangeAsync(IEnumerable<CastingCall> calls, CancellationToken ct = default)
     {
-        await db.CastingCalls.AddRangeAsync(calls, ct);
-        await db.SaveChangesAsync(ct);
+        var callsList = calls.ToList();
+        await db.CastingCalls.AddRangeAsync(callsList, ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch
+        {
+            // Detach entities so a failed batch doesn't poison subsequent SaveChangesAsync calls
+            foreach (var call in callsList)
+                db.Entry(call).State = EntityState.Detached;
+            throw;
+        }
     }
 
     public async Task UpdateAsync(CastingCall call, CancellationToken ct = default)

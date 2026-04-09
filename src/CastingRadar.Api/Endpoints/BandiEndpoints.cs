@@ -2,6 +2,7 @@ using CastingRadar.Application.DTOs;
 using CastingRadar.Application.Interfaces;
 using CastingRadar.Application.UseCases.ScrapeBandiPhaseOne;
 using CastingRadar.Domain.Entities;
+using Microsoft.AspNetCore.Mvc;
 
 namespace CastingRadar.Api.Endpoints;
 
@@ -11,11 +12,23 @@ public static class BandiEndpoints
     {
         var group = app.MapGroup("/api/bandi");
 
-        group.MapGet("/", async (IBandoRepository repo, string? userStatus, CancellationToken ct) =>
+        group.MapGet("/", async (
+            IBandoRepository repo,
+            IBandoKeywordExclusionRepository exclusionRepo,
+            string? userStatus,
+            bool? applyExclusions,
+            CancellationToken ct) =>
         {
             var bandi = await repo.GetAllAsync(ct);
             if (!string.IsNullOrWhiteSpace(userStatus))
                 bandi = bandi.Where(b => string.Equals(b.UserStatus, userStatus, StringComparison.OrdinalIgnoreCase));
+            if (applyExclusions == true)
+            {
+                var words = (await exclusionRepo.GetAllAsync(ct)).Select(e => e.Word).ToList();
+                if (words.Count > 0)
+                    bandi = bandi.Where(b =>
+                        !words.Any(w => ($"{b.Title} {b.BodyText}").ToLowerInvariant().Contains(w)));
+            }
             return Results.Ok(bandi.Select(BandoDto.FromEntity));
         });
 
@@ -164,6 +177,37 @@ public static class BandiEndpoints
                 sources: result.Sources));
         });
 
+        // ── Keyword exclusions ───────────────────────────────────────────────────
+        group.MapGet("/exclusions", async (IBandoKeywordExclusionRepository repo, CancellationToken ct) =>
+        {
+            var list = await repo.GetAllAsync(ct);
+            return Results.Ok(list.Select(e => new { e.Id, e.Word, e.CreatedAt }));
+        });
+
+        group.MapPost("/exclusions", async (
+            [FromBody] AddExclusionRequest req,
+            IBandoKeywordExclusionRepository repo,
+            CancellationToken ct) =>
+        {
+            var word = req.Word?.Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(word))
+                return Results.BadRequest("Parola obbligatoria");
+            if (await repo.ExistsByWordAsync(word, ct))
+                return Results.Conflict($"'{word}' già presente");
+            var e = BandoKeywordExclusion.Create(word);
+            await repo.AddAsync(e, ct);
+            return Results.Created($"/api/bandi/exclusions/{Uri.EscapeDataString(word)}", new { e.Word });
+        });
+
+        group.MapDelete("/exclusions/{word}", async (
+            string word,
+            IBandoKeywordExclusionRepository repo,
+            CancellationToken ct) =>
+        {
+            await repo.DeleteAsync(Uri.UnescapeDataString(word), ct);
+            return Results.NoContent();
+        });
+
         group.MapGet("/plan", () =>
         {
             var plan = new BandiPlanDto(
@@ -233,3 +277,4 @@ public record CreateCuratedBandoSourceRequest(
 
 public record UpdateBandoSourceRequest(string? BaseUrl, string? Regione);
 public record SetUserStatusRequest(string? Status);
+public record AddExclusionRequest(string? Word);

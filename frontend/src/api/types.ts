@@ -108,6 +108,36 @@ export interface BandiPlan {
   sourceGroups: BandiSourceGroup[];
 }
 
+export interface TeatroContact {
+  teatroName: string;
+  regione: string | null;
+  website: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  contactPageUrl: string | null;
+  notes: string | null;
+  scrapedAt: string | null;
+}
+
+export interface TeatroScrapeResult {
+  scraped: number;
+  results: Array<{
+    teatro: string;
+    regione: string | null;
+    email: string | null;
+    phone: string | null;
+    address: string | null;
+    error: string | null;
+  }>;
+}
+
+export interface BandoKeywordExclusion {
+  id: number;
+  word: string;
+  createdAt: string;
+}
+
 export interface FilterState {
   keywords?: string;
   types?: CastingType[];

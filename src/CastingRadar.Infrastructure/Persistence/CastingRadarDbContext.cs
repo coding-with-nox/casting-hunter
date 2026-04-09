@@ -10,6 +10,8 @@ public class CastingRadarDbContext(DbContextOptions<CastingRadarDbContext> optio
 {
     public DbSet<Bando> Bandi => Set<Bando>();
     public DbSet<BandoSource> BandoSources => Set<BandoSource>();
+    public DbSet<BandoKeywordExclusion> BandoKeywordExclusions => Set<BandoKeywordExclusion>();
+    public DbSet<TeatroContact> TeatroContacts => Set<TeatroContact>();
     public DbSet<CastingCall> CastingCalls => Set<CastingCall>();
     public DbSet<Source> Sources => Set<Source>();
     public DbSet<UserProfile> UserProfiles => Set<UserProfile>();
@@ -27,6 +29,19 @@ public class CastingRadarDbContext(DbContextOptions<CastingRadarDbContext> optio
         {
             e.HasKey(x => x.Id);
             e.HasIndex(x => x.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<BandoKeywordExclusion>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.Word).IsUnique();
+        });
+
+        modelBuilder.Entity<TeatroContact>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.TeatroName).IsUnique();
+            e.HasIndex(x => x.Regione);
         });
 
         modelBuilder.Entity<CastingCall>(e =>

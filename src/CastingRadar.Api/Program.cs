@@ -1,5 +1,6 @@
 using CastingRadar.Api.Endpoints;
 using CastingRadar.Infrastructure;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Serilog;
 using System.Threading.RateLimiting;
@@ -51,6 +52,21 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = 429;
 });
 
+var keycloakSection = builder.Configuration.GetSection("Keycloak");
+var keycloakEnabled = keycloakSection.GetValue<bool>("Enabled");
+
+if (keycloakEnabled)
+{
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+            options.Authority = keycloakSection["Authority"];
+            options.Audience = keycloakSection["Audience"];
+            options.RequireHttpsMetadata = keycloakSection.GetValue<bool>("RequireHttps", false);
+        });
+    builder.Services.AddAuthorization();
+}
+
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
@@ -77,9 +93,27 @@ app.UseCors();
 app.UseRateLimiter();
 app.UseStaticFiles();
 
+if (keycloakEnabled)
+{
+    app.UseAuthentication();
+    app.UseAuthorization();
+    // Require auth on all /api routes
+    app.Use(async (ctx, next) =>
+    {
+        if (ctx.Request.Path.StartsWithSegments("/api") && !(ctx.User.Identity?.IsAuthenticated ?? false))
+        {
+            ctx.Response.StatusCode = 401;
+            await ctx.Response.WriteAsync("Unauthorized");
+            return;
+        }
+        await next();
+    });
+}
+
 // API endpoints (general rate limit)
 app.MapCastingEndpoints();
 app.MapBandiEndpoints();
+app.MapTeatroEndpoints();
 app.MapSourceEndpoints();
 app.MapProfileEndpoints();
 app.MapStatsEndpoints();

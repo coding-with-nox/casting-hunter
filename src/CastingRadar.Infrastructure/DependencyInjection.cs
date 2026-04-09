@@ -10,6 +10,7 @@ using CastingRadar.Infrastructure.Http;
 using CastingRadar.Infrastructure.Notifications;
 using CastingRadar.Infrastructure.Persistence;
 using CastingRadar.Infrastructure.Persistence.Repositories;
+using CastingRadar.Infrastructure.Scrapers;
 using CastingRadar.Infrastructure.Scrapers.Bandi;
 using CastingRadar.Infrastructure.Scrapers.InternationalSources;
 using CastingRadar.Infrastructure.Scrapers.ItalianSources;
@@ -54,6 +55,9 @@ public static class DependencyInjection
         // Repositories
         services.AddScoped<IBandoRepository, BandoRepository>();
         services.AddScoped<IBandoSourceRepository, BandoSourceRepository>();
+        services.AddScoped<IBandoKeywordExclusionRepository, BandoKeywordExclusionRepository>();
+        services.AddScoped<ITeatroContactRepository, TeatroContactRepository>();
+        services.AddScoped<ITeatroContactScraper, TeatroContactScraper>();
         services.AddScoped<ICastingRepository, CastingRepository>();
         services.AddScoped<ISourceRepository, SourceRepository>();
         services.AddScoped<IUserProfileRepository, UserProfileRepository>();
@@ -96,7 +100,8 @@ public static class DependencyInjection
                 sp.GetRequiredService<IBandoRepository>(),
                 sp.GetRequiredService<IBandoSourceRepository>(),
                 sp.GetRequiredService<ILogger<ScrapeBandiPhaseOneHandler>>(),
-                sp.GetRequiredService<IGenericTeatroBandoScraper>()));
+                sp.GetRequiredService<IGenericTeatroBandoScraper>(),
+                sp.GetRequiredService<IBandoKeywordExclusionRepository>()));
         services.AddScoped<ScrapeAllSourcesHandler>();
         services.AddScoped<GetCastingCallsHandler>();
         services.AddScoped<MarkAsFavoriteHandler>();

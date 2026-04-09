@@ -33,10 +33,12 @@ public class MicSpettacoloBandoScraper(IHttpClientFactory httpClientFactory, ILo
         foreach (var link in links)
         {
             var bodyText = link.Title;
+            DateTime? deadline = null;
             try
             {
                 var detail = await LoadDocumentAsync(link.Url!, ct);
                 bodyText = CleanText(detail.QuerySelector("main, article, .entry-content, .content, body")?.TextContent);
+                deadline = ExtractItalianDateFromText(bodyText);
             }
             catch
             {
@@ -47,6 +49,7 @@ public class MicSpettacoloBandoScraper(IHttpClientFactory httpClientFactory, ILo
                 Title: link.Title,
                 SourceUrl: link.Url!,
                 BodyText: bodyText,
+                Deadline: deadline,
                 IssuerName: "Ministero della Cultura"));
         }
 

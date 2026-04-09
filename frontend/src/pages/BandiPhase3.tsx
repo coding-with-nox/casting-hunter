@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { castingApi } from '../api/castingApi';
-import type { BandiPlan, Bando, BandoScrapeResult, BandoSource } from '../api/types';
+import type { BandiPlan, Bando, BandoKeywordExclusion, BandoScrapeResult, BandoSource, TeatroContact, TeatroScrapeResult } from '../api/types';
 
 const FALLBACK_PLAN: BandiPlan = {
   status: 'Planning locale',
@@ -14,7 +14,7 @@ const FALLBACK_PLAN: BandiPlan = {
 type SortMode = 'recent' | 'deadline' | 'confidence';
 type ConfidenceFilter = 'all' | 'high' | 'medium' | 'low';
 type UserStatusFilter = 'all' | 'Considerato' | 'Escluso';
-type BandiTab = 'dashboard' | 'impostazioni';
+type BandiTab = 'dashboard' | 'contatti' | 'impostazioni';
 
 function formatDate(value: string | null) {
   if (!value) return 'Non indicata';
@@ -88,6 +88,7 @@ export function BandiPhase3() {
   const [sortMode, setSortMode] = useState<SortMode>('recent');
   const [confidenceFilter, setConfidenceFilter] = useState<ConfidenceFilter>('all');
   const [onlyPublic, setOnlyPublic] = useState(false);
+  const [hideExcluded, setHideExcluded] = useState(false);
   const [userStatusFilter, setUserStatusFilter] = useState<UserStatusFilter>('all');
 
   // Sources (impostazioni)
@@ -100,14 +101,32 @@ export function BandiPhase3() {
   const [curatedBaseUrl, setCuratedBaseUrl] = useState('');
   const [savingCurated, setSavingCurated] = useState(false);
 
+  // Teatro contacts
+  const [contacts, setContacts] = useState<TeatroContact[]>([]);
+  const [contattiRegione, setContattiRegione] = useState('all');
+  const [contattiRegioni, setContattiRegioni] = useState<string[]>([]);
+  const [scrapingContacts, setScrapingContacts] = useState(false);
+  const [contactScrapeResult, setContactScrapeResult] = useState<TeatroScrapeResult | null>(null);
+  const [editingContact, setEditingContact] = useState<string | null>(null);
+  const [editContactData, setEditContactData] = useState({ website: '', email: '', phone: '', address: '', notes: '' });
+  const [savingContact, setSavingContact] = useState(false);
+
+  // Keyword exclusions
+  const [exclusions, setExclusions] = useState<BandoKeywordExclusion[]>([]);
+  const [newExclusionWord, setNewExclusionWord] = useState('');
+  const [savingExclusion, setSavingExclusion] = useState(false);
+
   const load = async () => {
     setLoading(true);
     const nextWarnings: string[] = [];
     try {
-      const [planResult, bandiResult, sourcesResult] = await Promise.allSettled([
+      const [planResult, bandiResult, sourcesResult, exclusionsResult, contactsResult, regioniResult] = await Promise.allSettled([
         castingApi.getBandiPlan(),
         castingApi.getBandi(),
         castingApi.getBandiSources(),
+        castingApi.getExclusions(),
+        castingApi.getTeatroContacts(),
+        castingApi.getTeatroRegioni(),
       ]);
       setPlan(planResult.status === 'fulfilled' ? planResult.value : FALLBACK_PLAN);
       if (planResult.status === 'rejected')
@@ -118,6 +137,9 @@ export function BandiPhase3() {
       setSources(sourcesResult.status === 'fulfilled' ? sourcesResult.value : []);
       if (sourcesResult.status === 'rejected')
         nextWarnings.push(sourcesResult.reason instanceof Error ? sourcesResult.reason.message : 'Registry fonti non disponibile');
+      setExclusions(exclusionsResult.status === 'fulfilled' ? exclusionsResult.value : []);
+      setContacts(contactsResult.status === 'fulfilled' ? contactsResult.value : []);
+      setContattiRegioni(regioniResult.status === 'fulfilled' ? regioniResult.value : []);
       setWarnings(nextWarnings);
     } finally {
       setLoading(false);
@@ -148,6 +170,7 @@ export function BandiPhase3() {
       if (confidenceFilter === 'medium' && (b.confidenceScore < 0.70 || b.confidenceScore >= 0.85)) return false;
       if (confidenceFilter === 'low' && b.confidenceScore >= 0.70) return false;
       if (onlyPublic && !b.isPublic) return false;
+      if (hideExcluded && b.userStatus === 'Escluso') return false;
        if (userStatusFilter === 'Considerato' && b.userStatus !== 'Considerato') return false;
        if (userStatusFilter === 'Escluso' && b.userStatus !== 'Escluso') return false;
        return true;
@@ -262,6 +285,56 @@ export function BandiPhase3() {
     } finally { setSavingCurated(false); }
   };
 
+  const handleScrapeContacts = async () => {
+    setScrapingContacts(true); setWarnings([]); setContactScrapeResult(null);
+    const regione = contattiRegione === 'all' ? undefined : contattiRegione;
+    try {
+      const result = await castingApi.scrapeTeatroContacts(regione);
+      setContactScrapeResult(result);
+      const updated = await castingApi.getTeatroContacts();
+      setContacts(updated);
+    } catch (error) {
+      setWarnings([error instanceof Error ? error.message : 'Errore scrape contatti']);
+    } finally { setScrapingContacts(false); }
+  };
+
+  const handleEditContact = (c: TeatroContact) => {
+    setEditingContact(c.teatroName);
+    setEditContactData({ website: c.website ?? '', email: c.email ?? '', phone: c.phone ?? '', address: c.address ?? '', notes: c.notes ?? '' });
+  };
+
+  const handleSaveContact = async (name: string) => {
+    setSavingContact(true);
+    try {
+      const updated = await castingApi.updateTeatroContact(name, editContactData);
+      setContacts(prev => prev.map(c => c.teatroName === name ? updated : c));
+      setEditingContact(null);
+    } catch (error) {
+      setWarnings([error instanceof Error ? error.message : 'Errore salvataggio contatto']);
+    } finally { setSavingContact(false); }
+  };
+
+  const handleAddExclusion = async () => {
+    const word = newExclusionWord.trim().toLowerCase();
+    if (!word) return;
+    setSavingExclusion(true); setWarnings([]);
+    try {
+      await castingApi.addExclusion(word);
+      setNewExclusionWord(''); await load();
+    } catch (error) {
+      setWarnings([error instanceof Error ? error.message : 'Errore aggiunta parola']);
+    } finally { setSavingExclusion(false); }
+  };
+
+  const handleDeleteExclusion = async (word: string) => {
+    try {
+      await castingApi.deleteExclusion(word);
+      setExclusions(prev => prev.filter(e => e.word !== word));
+    } catch (error) {
+      setWarnings([error instanceof Error ? error.message : 'Errore rimozione parola']);
+    }
+  };
+
   if (loading) return <div className="p-8 text-[#666]">Caricamento bandi...</div>;
 
   const inputCls = "rounded-lg border border-[#262626] bg-[#101010] px-3 py-2 text-sm text-[#f5f5f5] outline-none focus:border-[#d4af37]/40";
@@ -271,7 +344,7 @@ export function BandiPhase3() {
       {/* Sub-tab bar */}
       <div className="flex-shrink-0 border-b border-[#1a1a1a] bg-[#0d0d0d] px-5">
         <div className="flex gap-0.5">
-          {(['dashboard', 'impostazioni'] as BandiTab[]).map(t => (
+          {(['dashboard', 'contatti', 'impostazioni'] as BandiTab[]).map(t => (
             <button
               key={t}
               type="button"
@@ -282,7 +355,7 @@ export function BandiPhase3() {
                   : 'border-transparent text-[#555] hover:text-[#999]'
               }`}
             >
-              {t === 'dashboard' ? 'Dashboard' : 'Impostazioni'}
+              {t === 'dashboard' ? 'Dashboard' : t === 'contatti' ? 'Contatti' : 'Impostazioni'}
             </button>
           ))}
         </div>
@@ -393,9 +466,13 @@ export function BandiPhase3() {
                   <input type="checkbox" checked={onlyPublic} onChange={e => setOnlyPublic(e.target.checked)} className="accent-[#d4af37]" />
                   Solo pubblici
                 </label>
+                <label className="inline-flex items-center gap-2 rounded-lg border border-red-900/40 bg-red-900/10 px-3 py-2 text-sm text-red-300">
+                  <input type="checkbox" checked={hideExcluded} onChange={e => setHideExcluded(e.target.checked)} className="accent-red-500" />
+                  No esclusi
+                </label>
                 <button
                   type="button"
-                  onClick={() => { setSearch(''); setSourceFilter('all'); setIssuerTypeFilter('all'); setDisciplineFilter('all'); setStatusFilter('all'); setSortMode('recent'); setConfidenceFilter('all'); setOnlyPublic(false); setUserStatusFilter('all'); }}
+                  onClick={() => { setSearch(''); setSourceFilter('all'); setIssuerTypeFilter('all'); setDisciplineFilter('all'); setStatusFilter('all'); setSortMode('recent'); setConfidenceFilter('all'); setOnlyPublic(false); setHideExcluded(false); setUserStatusFilter('all'); }}
                   className="rounded-lg border border-[#262626] bg-[#101010] px-3 py-2 text-sm text-[#d0d0d0] transition hover:border-[#d4af37]/40"
                 >
                   Reset filtri
@@ -419,11 +496,13 @@ export function BandiPhase3() {
                 ) : (
                   <div className="flex flex-col gap-3">
                     {filteredBandi.map(bando => (
-                      <button
+                      <div
                         key={bando.id}
-                        type="button"
+                        role="button"
+                        tabIndex={0}
                         onClick={() => setSelectedBandoId(bando.id)}
-                        className={`w-full rounded-xl border px-4 py-4 text-left transition ${
+                        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setSelectedBandoId(bando.id); }}
+                        className={`w-full rounded-xl border px-4 py-4 text-left transition cursor-pointer ${
                           selectedBandoId === bando.id
                             ? 'border-[#d4af37]/40 bg-[#15120a]'
                             : bando.userStatus === 'Escluso'
@@ -434,8 +513,22 @@ export function BandiPhase3() {
                         }`}
                       >
                         <div className="flex items-start justify-between gap-4">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-[#f5f5f5]">{bando.title}</p>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-semibold text-[#f5f5f5]">{bando.title}</p>
+                              {bando.sourceUrl && (
+                                <a
+                                  href={bando.sourceUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={e => e.stopPropagation()}
+                                  title={`Apri: ${bando.sourceUrl}`}
+                                  className="flex-shrink-0 rounded border border-[#333] bg-[#1a1a1a] px-1.5 py-0.5 text-[10px] text-[#aaa] hover:border-[#d4af37]/50 hover:text-[#f3d67a] transition-colors whitespace-nowrap"
+                                >
+                                  ↗ apri
+                                </a>
+                              )}
+                            </div>
                             <p className="mt-0.5 text-xs text-[#8a8a8a]">{bando.issuerName} — {bando.sourceName}</p>
                             <p className="mt-2 text-xs text-[#9a9a9a]">{getPreview(bando.bodyText)}</p>
                           </div>
@@ -451,7 +544,7 @@ export function BandiPhase3() {
                           {bando.userStatus === 'Considerato' && <span className="rounded-md border border-emerald-700/40 bg-emerald-900/20 px-2 py-0.5 text-emerald-300">✓ Considerato</span>}
                           {bando.userStatus === 'Escluso' && <span className="rounded-md border border-red-800/40 bg-red-900/20 px-2 py-0.5 text-red-300">✕ Escluso</span>}
                         </div>
-                      </button>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -550,6 +643,138 @@ export function BandiPhase3() {
           </div>
         )}
 
+        {/* ── CONTATTI ── */}
+        {bandiTab === 'contatti' && (
+          <div className="p-6 flex flex-col gap-5">
+            {/* Header + scrape controls */}
+            <section className="rounded-xl border border-[#1e1e1e] bg-[#141414] p-5">
+              <div className="flex flex-wrap items-end gap-4">
+                <div className="flex-1 min-w-[200px]">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-[#555] mb-1">Contatti teatri</h3>
+                  <p className="text-xs text-[#666]">Scrape automatico di email, telefono e indirizzo dai siti dei teatri.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={contattiRegione}
+                    onChange={e => setContattiRegione(e.target.value)}
+                    className="rounded-lg border border-[#262626] bg-[#101010] px-3 py-2 text-sm text-[#f5f5f5] outline-none focus:border-[#d4af37]/40"
+                  >
+                    <option value="all">Tutte le regioni</option>
+                    {contattiRegioni.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleScrapeContacts}
+                    disabled={scrapingContacts}
+                    className="rounded-lg border border-[#d4af37]/40 bg-[#d4af37]/10 px-4 py-2 text-sm font-medium text-[#f3d67a] transition hover:bg-[#d4af37]/20 disabled:opacity-50"
+                  >
+                    {scrapingContacts ? 'Scraping...' : 'Scrape contatti'}
+                  </button>
+                </div>
+              </div>
+              {contactScrapeResult && (
+                <div className="mt-4 flex flex-wrap gap-4 text-sm">
+                  <span className="text-[#666]">Teatri scrape: <span className="font-semibold text-[#f5f5f5]">{contactScrapeResult.scraped}</span></span>
+                  <span className="text-[#666]">Con email: <span className="font-semibold text-emerald-300">{contactScrapeResult.results.filter(r => r.email).length}</span></span>
+                  <span className="text-[#666]">Con errori: <span className="font-semibold text-red-400">{contactScrapeResult.results.filter(r => r.error).length}</span></span>
+                </div>
+              )}
+            </section>
+
+            {/* Stats row */}
+            <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              {[
+                { label: 'Totale', value: contacts.length, color: 'text-[#f5f5f5]' },
+                { label: 'Con email', value: contacts.filter(c => c.email).length, color: 'text-emerald-300' },
+                { label: 'Con telefono', value: contacts.filter(c => c.phone).length, color: 'text-sky-300' },
+                { label: 'Con indirizzo', value: contacts.filter(c => c.address).length, color: 'text-[#f3d67a]' },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="rounded-xl border border-[#1e1e1e] bg-[#141414] p-4">
+                  <p className="text-[10px] uppercase tracking-[0.16em] text-[#666]">{label}</p>
+                  <p className={`mt-1 text-2xl font-semibold ${color}`}>{value}</p>
+                </div>
+              ))}
+            </section>
+
+            {/* Contact cards grid */}
+            {contacts.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-[#2a2a2a] bg-[#101010] px-4 py-8 text-center">
+                <p className="text-sm font-semibold text-[#f5f5f5]">Nessun contatto disponibile</p>
+                <p className="mt-1 text-sm text-[#7a7a7a]">Usa il bottone "Scrape contatti" per estrarre i dati dai siti dei teatri.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {(contattiRegione === 'all' ? contacts : contacts.filter(c => c.regione === contattiRegione)).map(c => (
+                  <div key={c.teatroName} className="rounded-xl border border-[#1e1e1e] bg-[#141414] p-4 flex flex-col gap-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-[#f5f5f5] leading-snug">{c.teatroName}</p>
+                        {c.regione && <p className="text-xs text-[#666] mt-0.5">{c.regione}</p>}
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {c.website && (
+                          <a href={c.website} target="_blank" rel="noreferrer"
+                            className="rounded border border-[#333] bg-[#1a1a1a] px-1.5 py-0.5 text-[10px] text-[#aaa] hover:border-[#d4af37]/50 hover:text-[#f3d67a] transition-colors">
+                            ↗ sito
+                          </a>
+                        )}
+                        <button type="button" onClick={() => handleEditContact(c)}
+                          className="w-6 h-6 flex items-center justify-center rounded text-[#555] hover:text-[#d4af37] transition-colors">
+                          <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+
+                    {editingContact === c.teatroName ? (
+                      <div className="flex flex-col gap-2">
+                        {(['website', 'email', 'phone', 'address', 'notes'] as const).map(field => (
+                          <input key={field} value={editContactData[field]}
+                            onChange={e => setEditContactData(prev => ({ ...prev, [field]: e.target.value }))}
+                            placeholder={field === 'website' ? 'sito web (https://...)' : field === 'email' ? 'email' : field === 'phone' ? 'telefono' : field === 'address' ? 'indirizzo' : 'note'}
+                            className="rounded-lg border border-[#262626] bg-[#101010] px-2 py-1.5 text-xs text-[#f5f5f5] outline-none focus:border-[#d4af37]/40" />
+                        ))}
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => handleSaveContact(c.teatroName)} disabled={savingContact}
+                            className="flex-1 rounded-lg border border-[#d4af37]/40 bg-[#d4af37]/10 py-1.5 text-xs font-medium text-[#f3d67a] disabled:opacity-50">
+                            {savingContact ? 'Salvo...' : 'Salva'}
+                          </button>
+                          <button type="button" onClick={() => setEditingContact(null)}
+                            className="rounded-lg border border-[#333] px-3 py-1.5 text-xs text-[#888] hover:text-[#ccc]">
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-1.5 text-xs">
+                        {c.email ? (
+                          <a href={`mailto:${c.email}`} className="flex items-center gap-1.5 text-emerald-300 hover:text-emerald-200 transition-colors">
+                            <span className="text-[#555]">✉</span> {c.email}
+                          </a>
+                        ) : <span className="text-[#444]">Email non trovata</span>}
+                        {c.phone ? (
+                          <a href={`tel:${c.phone.replace(/\s/g, '')}`} className="flex items-center gap-1.5 text-sky-300 hover:text-sky-200 transition-colors">
+                            <span className="text-[#555]">☎</span> {c.phone}
+                          </a>
+                        ) : <span className="text-[#444]">Telefono non trovato</span>}
+                        {c.address && <p className="text-[#8a8a8a]"><span className="text-[#555]">📍</span> {c.address}</p>}
+                        {c.notes && <p className="text-[#666] italic">{c.notes}</p>}
+                        {c.scrapedAt && (
+                          <p className="text-[#444] text-[10px] mt-1">
+                            Aggiornato {new Date(c.scrapedAt).toLocaleDateString('it-IT')}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── IMPOSTAZIONI ── */}
         {bandiTab === 'impostazioni' && (
           <div className="p-6 flex flex-col gap-5">
@@ -630,13 +855,16 @@ export function BandiPhase3() {
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 flex-shrink-0">
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {/* Toggle switch */}
                           <button type="button" onClick={() => handleToggleBandoSource(source.name, !source.isEnabled)}
                             title={source.isEnabled ? 'Disattiva' : 'Attiva'}
-                            className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs transition-colors ${
-                              source.isEnabled ? 'text-emerald-400 hover:text-emerald-300' : 'text-[#555] hover:text-[#999]'
+                            className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none ${
+                              source.isEnabled ? 'bg-emerald-600' : 'bg-[#333]'
                             }`}>
-                            {source.isEnabled ? '●' : '○'}
+                            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                              source.isEnabled ? 'translate-x-[18px]' : 'translate-x-0.5'
+                            }`} />
                           </button>
                           <button type="button" onClick={() => handleEditSource(source)} title="Modifica"
                             className="w-7 h-7 flex items-center justify-center rounded-lg text-[#555] hover:text-[#d4af37] transition-colors">
@@ -645,17 +873,15 @@ export function BandiPhase3() {
                               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                             </svg>
                           </button>
-                          {!source.isOfficial && (
-                            <button type="button" onClick={() => handleDeleteSource(source.name)} title="Elimina"
-                              className="w-7 h-7 flex items-center justify-center rounded-lg text-[#555] hover:text-red-400 transition-colors">
-                              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="3 6 5 6 21 6" />
-                                <path d="M19 6l-1 14H6L5 6" />
-                                <path d="M10 11v6M14 11v6" />
-                                <path d="M9 6V4h6v2" />
-                              </svg>
-                            </button>
-                          )}
+                          <button type="button" onClick={() => handleDeleteSource(source.name)} title="Elimina"
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-[#555] hover:text-red-400 transition-colors">
+                            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6l-1 14H6L5 6" />
+                              <path d="M10 11v6M14 11v6" />
+                              <path d="M9 6V4h6v2" />
+                            </svg>
+                          </button>
                         </div>
                       </div>
 
@@ -690,6 +916,48 @@ export function BandiPhase3() {
                         <p className="mt-1 text-[10px] text-[#444]">Mai eseguito</p>
                       )}
                       <p className="mt-1 break-all text-[10px] text-[#444]">{source.baseUrl}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* Keyword exclusions */}
+            <section className="rounded-xl border border-[#1e1e1e] bg-[#141414] p-5">
+              <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-[#555]">Parole chiave escluse</h3>
+              <p className="mb-4 text-xs text-[#666]">I bandi futuri che contengono queste parole nel titolo o nel testo vengono scartati durante lo scrape.</p>
+              <div className="mb-4 flex gap-2">
+                <input
+                  value={newExclusionWord}
+                  onChange={e => setNewExclusionWord(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') void handleAddExclusion(); }}
+                  placeholder="Es. informatico, developer, hr..."
+                  className="flex-1 rounded-lg border border-[#262626] bg-[#101010] px-3 py-2 text-sm text-[#f5f5f5] outline-none focus:border-[#d4af37]/40"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddExclusion}
+                  disabled={savingExclusion || !newExclusionWord.trim()}
+                  className="rounded-lg border border-[#d4af37]/40 bg-[#d4af37]/10 px-4 py-2 text-sm font-medium text-[#f3d67a] transition hover:bg-[#d4af37]/20 disabled:opacity-50"
+                >
+                  {savingExclusion ? 'Aggiunta...' : 'Aggiungi'}
+                </button>
+              </div>
+              {exclusions.length === 0 ? (
+                <p className="text-sm text-[#555]">Nessuna parola esclusa.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {exclusions.map(e => (
+                    <div key={e.word} className="inline-flex items-center gap-1.5 rounded-lg border border-red-900/40 bg-red-900/10 pl-3 pr-1.5 py-1 text-sm text-red-300">
+                      {e.word}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteExclusion(e.word)}
+                        title="Rimuovi"
+                        className="rounded p-0.5 text-red-500 hover:text-red-300 transition-colors"
+                      >
+                        ✕
+                      </button>
                     </div>
                   ))}
                 </div>
