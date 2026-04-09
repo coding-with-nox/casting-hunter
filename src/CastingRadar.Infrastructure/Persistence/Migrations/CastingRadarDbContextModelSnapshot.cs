@@ -88,6 +88,9 @@ namespace CastingRadar.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("UserStatus")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ContentHash")

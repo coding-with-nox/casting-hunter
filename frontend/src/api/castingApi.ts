@@ -111,8 +111,16 @@ export const castingApi = {
     return request<BandiPlan>('/bandi/plan');
   },
 
-  getBandi(): Promise<Bando[]> {
-    return request<Bando[]>('/bandi');
+  getBandi(userStatus?: string): Promise<Bando[]> {
+    const qs = userStatus ? `?userStatus=${encodeURIComponent(userStatus)}` : '';
+    return request<Bando[]>(`/bandi${qs}`);
+  },
+
+  setBandoUserStatus(id: string, status: 'Considerato' | 'Escluso' | null): Promise<Bando> {
+    return request<Bando>(`/bandi/${id}/user-status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
   },
 
   getBando(id: string): Promise<Bando> {

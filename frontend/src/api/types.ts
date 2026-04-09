@@ -73,6 +73,7 @@ export interface Bando {
   confidenceScore: number;
   status: string;
   createdAt: string;
+  userStatus: 'Considerato' | 'Escluso' | null;
   reviewSignals: string[];
 }
 

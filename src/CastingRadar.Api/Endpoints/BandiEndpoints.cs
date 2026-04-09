@@ -11,10 +11,29 @@ public static class BandiEndpoints
     {
         var group = app.MapGroup("/api/bandi");
 
-        group.MapGet("/", async (IBandoRepository repo, CancellationToken ct) =>
+        group.MapGet("/", async (IBandoRepository repo, string? userStatus, CancellationToken ct) =>
         {
             var bandi = await repo.GetAllAsync(ct);
+            if (!string.IsNullOrWhiteSpace(userStatus))
+                bandi = bandi.Where(b => string.Equals(b.UserStatus, userStatus, StringComparison.OrdinalIgnoreCase));
             return Results.Ok(bandi.Select(BandoDto.FromEntity));
+        });
+
+        group.MapPatch("/{id:guid}/user-status", async (
+            Guid id,
+            SetUserStatusRequest req,
+            IBandoRepository repo,
+            CancellationToken ct) =>
+        {
+            var bando = await repo.GetByIdAsync(id, ct);
+            if (bando is null) return Results.NotFound();
+            // null = reset, "Considerato", "Escluso"
+            var status = req.Status?.Trim();
+            if (status is not null && status is not "Considerato" and not "Escluso")
+                return Results.BadRequest("Status deve essere null, 'Considerato' o 'Escluso'");
+            bando.SetUserStatus(status);
+            await repo.UpdateAsync(bando, ct);
+            return Results.Ok(BandoDto.FromEntity(bando));
         });
 
         group.MapGet("/{id:guid}", async (Guid id, IBandoRepository repo, CancellationToken ct) =>
@@ -213,3 +232,4 @@ public record CreateCuratedBandoSourceRequest(
     bool? IsOfficial);
 
 public record UpdateBandoSourceRequest(string? BaseUrl, string? Regione);
+public record SetUserStatusRequest(string? Status);

@@ -23,4 +23,10 @@ public class BandoRepository(CastingRadarDbContext db) : IBandoRepository
         db.Bandi.Add(bando);
         await db.SaveChangesAsync(ct);
     }
+
+    public async Task UpdateAsync(Bando bando, CancellationToken ct = default)
+    {
+        db.Bandi.Update(bando);
+        await db.SaveChangesAsync(ct);
+    }
 }

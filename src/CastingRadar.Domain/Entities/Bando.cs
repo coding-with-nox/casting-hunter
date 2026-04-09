@@ -23,6 +23,8 @@ public class Bando
     public string Status { get; private set; } = string.Empty;
     public DateTime CreatedAt { get; private set; }
     public string ContentHash { get; private set; } = string.Empty;
+    /// <summary>null = non valutato, "Considerato" = interesse, "Escluso" = scartato</summary>
+    public string? UserStatus { get; private set; }
 
     private Bando() { }
 
@@ -66,6 +68,8 @@ public class Bando
             ContentHash = hash
         };
     }
+
+    public void SetUserStatus(string? status) => UserStatus = status;
 
     public static string ComputeHash(string title, string issuerName, string sourceUrl)
     {

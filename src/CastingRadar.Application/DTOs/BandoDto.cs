@@ -20,6 +20,7 @@ public record BandoDto(
     decimal ConfidenceScore,
     string Status,
     DateTime CreatedAt,
+    string? UserStatus,
     IReadOnlyList<string> ReviewSignals)
 {
     public static BandoDto FromEntity(Bando b) => new(
@@ -40,6 +41,7 @@ public record BandoDto(
         b.ConfidenceScore,
         b.Status,
         b.CreatedAt,
+        b.UserStatus,
         BuildReviewSignals(b));
 
     private static IReadOnlyList<string> BuildReviewSignals(Bando b)

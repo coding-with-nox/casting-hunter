@@ -8,4 +8,5 @@ public interface IBandoRepository
     Task<Bando?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<bool> ExistsByHashAsync(string contentHash, CancellationToken ct = default);
     Task AddAsync(Bando bando, CancellationToken ct = default);
+    Task UpdateAsync(Bando bando, CancellationToken ct = default);
 }
