@@ -431,7 +431,7 @@ public class ScrapeBandiPhaseOneHandler(
 
         var html = await http.GetStringAsync(source.BaseUrl, ct);
         var baseUri = new Uri(source.BaseUrl);
-        var results = new List<ScrapedBandoItem>();
+        var candidates = new List<(string Title, string PageUrl)>();
 
         var linkMatches = Regex.Matches(
             html,
@@ -441,29 +441,99 @@ public class ScrapeBandiPhaseOneHandler(
         foreach (Match match in linkMatches.Cast<Match>().Take(120))
         {
             var rawLink = match.Groups[1].Value;
+            if (rawLink.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase)) continue;
+
             var linkText = WebUtility.HtmlDecode(Regex.Replace(match.Groups[2].Value, "<.*?>", " "));
             var title = CleanText(linkText);
 
-            if (string.IsNullOrWhiteSpace(title) || !LooksCuratedAndArtistic(title))
-            {
-                continue;
-            }
+            if (string.IsNullOrWhiteSpace(title) || title.Contains('@') || !LooksCuratedAndArtistic(title)) continue;
 
-            var link = Uri.TryCreate(rawLink, UriKind.Absolute, out var absolute)
-                ? absolute.ToString()
-                : new Uri(baseUri, rawLink).ToString();
+            string? absoluteLink = null;
+            if (Uri.TryCreate(rawLink, UriKind.Absolute, out var abs)
+                && (abs.Scheme == Uri.UriSchemeHttp || abs.Scheme == Uri.UriSchemeHttps))
+                absoluteLink = abs.ToString();
+            else if (Uri.TryCreate(baseUri, rawLink, out var rel)
+                && (rel.Scheme == Uri.UriSchemeHttp || rel.Scheme == Uri.UriSchemeHttps))
+                absoluteLink = rel.ToString();
+
+            if (absoluteLink is not null)
+                candidates.Add((title, absoluteLink));
+        }
+
+        var results = new List<ScrapedBandoItem>();
+        foreach (var (title, pageUrl) in candidates.DistinctBy(c => c.PageUrl, StringComparer.OrdinalIgnoreCase).Take(20))
+        {
+            var bodyText = title;
+            DateTime? deadline = null;
+            string? pdfUrl = null;
+
+            try
+            {
+                var detailHtml = await http.GetStringAsync(pageUrl, ct);
+
+                // Extract text (simple regex strip — no AngleSharp in Application layer)
+                bodyText = CleanText(Regex.Replace(detailHtml, "<.*?>", " "));
+
+                // Deadline from body text
+                deadline = ExtractDeadlineFromText(bodyText);
+
+                // PDF link in detail page
+                var pdfMatch = Regex.Match(detailHtml,
+                    @"href=[""']([^""']+\.pdf)[""']",
+                    RegexOptions.IgnoreCase);
+                if (pdfMatch.Success)
+                {
+                    var raw = pdfMatch.Groups[1].Value;
+                    if (Uri.TryCreate(raw, UriKind.Absolute, out var pAbs)
+                        && (pAbs.Scheme == Uri.UriSchemeHttp || pAbs.Scheme == Uri.UriSchemeHttps))
+                        pdfUrl = pAbs.ToString();
+                    else if (Uri.TryCreate(new Uri(pageUrl), raw, out var pRel)
+                        && (pRel.Scheme == Uri.UriSchemeHttp || pRel.Scheme == Uri.UriSchemeHttps))
+                        pdfUrl = pRel.ToString();
+                }
+            }
+            catch { /* keep title as body */ }
 
             results.Add(new ScrapedBandoItem(
                 Title: title,
-                SourceUrl: link,
-                BodyText: title,
+                SourceUrl: pageUrl,
+                BodyText: bodyText,
+                Deadline: deadline,
+                ApplicationUrl: pdfUrl,
                 IssuerName: source.Name));
         }
 
-        return results
-            .DistinctBy(item => item.SourceUrl, StringComparer.OrdinalIgnoreCase)
-            .Take(20)
-            .ToList();
+        return results;
+    }
+
+    // Minimal deadline extractor for Application layer (no regex imports needed — already using System.Text.RegularExpressions)
+    private static DateTime? ExtractDeadlineFromText(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+
+        var itCulture = System.Globalization.CultureInfo.GetCultureInfo("it-IT");
+        var patterns = new[]
+        {
+            @"(?:entro(?:\s+e\s+non\s+oltre)?(?:\s+il)?|non\s+oltre(?:\s+il)?|scadenza[:\s]+|termine[:\s]+|scade(?:\s+il)?)\s*(?<date>\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}|\d{1,2}\s+[A-Za-zÀ-ÿ]+\s+\d{4})",
+            @"(?<date>\d{1,2}\s+(?:gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)\s+\d{4})",
+        };
+
+        foreach (var pattern in patterns)
+        {
+            var match = Regex.Match(text, pattern, RegexOptions.IgnoreCase);
+            if (!match.Success) continue;
+
+            var raw = Regex.Replace(match.Groups["date"].Value.Trim(), @"[/.]", "-");
+            if (DateTime.TryParse(raw, itCulture, System.Globalization.DateTimeStyles.AssumeLocal, out var d)
+                && d.Year >= 2020 && d.Year <= 2035)
+                return d;
+            if (DateTime.TryParseExact(raw, ["d-M-yyyy", "dd-MM-yyyy"],
+                itCulture, System.Globalization.DateTimeStyles.AssumeLocal, out var d2)
+                && d2.Year >= 2020 && d2.Year <= 2035)
+                return d2;
+        }
+
+        return null;
     }
 
     private static bool LooksCuratedAndArtistic(string title)

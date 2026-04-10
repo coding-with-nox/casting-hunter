@@ -17,16 +17,23 @@ public class GenericTeatroBandoScraper(IHttpClientFactory httpClientFactory, ILo
 
     private static readonly string[] SubPaths =
     [
-        "/bandi", "/audizioni", "/concorsi", "/lavora-con-noi", "/lavora-con-noi/concorsi",
+        "/bandi", "/audizioni", "/concorsi",
+        "/lavora-con-noi", "/lavora-con-noi/concorsi",
         "/it/il-teatro/lavora-con-noi", "/chi-siamo/lavora-con-noi",
-        "/news", "/comunicati", "/eventi", "/il-teatro",
+        "/formazione", "/accademia", "/scuola",
     ];
 
+    // Solo keyword che identificano inequivocabilmente un bando/selezione, NON un concerto o articolo
     private static readonly string[] TitleKeywords =
     [
-        "audizione", "concorso", "selezione", "bando", "ammissione",
-        "corso per attori", "formazione attori", "iscrizione",
-        "coro", "orchestra", "danzatore", "ballerino", "attore", "attrice"
+        "audizione", "audizioni",
+        "concorso", "concorsi",
+        "selezione", "selezioni",
+        "bando", "bandi",
+        "ammissione",
+        "corso per attori", "formazione attori",
+        "danzatore", "danzatrice",
+        "ballerino", "ballerina",
     ];
 
     protected override Task<IEnumerable<ScrapedBandoItem>> ScrapeInternalAsync(BandoSource source, CancellationToken ct)
@@ -69,20 +76,33 @@ public class GenericTeatroBandoScraper(IHttpClientFactory httpClientFactory, ILo
                 {
                     var bodyText = candidate.Title;
                     DateTime? deadline = null;
+                    string? pdfUrl = null;
+                    // candidate.Url è la pagina web di dettaglio — è il SourceUrl corretto
+                    var pageUrl = candidate.Url!;
+
                     try
                     {
-                        var detail = await LoadDocumentAsync(candidate.Url!, ct);
+                        var detail = await LoadDocumentAsync(pageUrl, ct);
                         var dt = CleanText(detail.QuerySelector("main, article, .content, body")?.TextContent);
                         if (!string.IsNullOrWhiteSpace(dt)) bodyText = dt;
                         deadline = ExtractItalianDateFromText(bodyText);
+
+                        // Cerca PDF nella pagina di dettaglio → diventa ApplicationUrl
+                        pdfUrl = detail.QuerySelectorAll("a[href]")
+                            .Select(a => TryAbsoluteUrl(pageUrl, a.GetAttribute("href")))
+                            .FirstOrDefault(u => u is not null
+                                && (u.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)
+                                    || u.Contains("/pdf/", StringComparison.OrdinalIgnoreCase)
+                                    || u.Contains("download", StringComparison.OrdinalIgnoreCase)));
                     }
                     catch { /* keep fallback */ }
 
                     results.Add(new ScrapedBandoItem(
                         Title: candidate.Title,
-                        SourceUrl: candidate.Url!,
+                        SourceUrl: pageUrl,
                         BodyText: bodyText,
                         Deadline: deadline,
+                        ApplicationUrl: pdfUrl,
                         IssuerName: source.Name));
                 }
             }

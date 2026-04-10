@@ -88,7 +88,7 @@ export function BandiPhase3() {
   const [sortMode, setSortMode] = useState<SortMode>('recent');
   const [confidenceFilter, setConfidenceFilter] = useState<ConfidenceFilter>('all');
   const [onlyPublic, setOnlyPublic] = useState(false);
-  const [hideExcluded, setHideExcluded] = useState(false);
+  const [hideExcluded, setHideExcluded] = useState(true);
   const [userStatusFilter, setUserStatusFilter] = useState<UserStatusFilter>('all');
 
   // Sources (impostazioni)
@@ -263,9 +263,10 @@ export function BandiPhase3() {
       setWarnings([error instanceof Error ? error.message : 'Errore salvataggio fonte']);
     } finally { setSavingSource(false); }
   };
-  const handleDeleteSource = async (name: string) => {
-    if (!confirm(`Eliminare la fonte "${name}"?`)) return;
-    try { await castingApi.deleteBandoSource(name); await load(); }
+  const handleDeleteSource = async (source: BandoSource) => {
+    if (!source.id) { setWarnings(['ID fonte mancante — ricarica la pagina']); return; }
+    if (!confirm(`Eliminare la fonte "${source.name}"?`)) return;
+    try { await castingApi.deleteBandoSource(source.id); await load(); }
     catch (error) { setWarnings([error instanceof Error ? error.message : 'Errore eliminazione fonte']); }
   };
   const handleToggleBandoSource = async (name: string, enabled: boolean) => {
@@ -514,7 +515,7 @@ export function BandiPhase3() {
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <p className="text-sm font-semibold text-[#f5f5f5]">{bando.title}</p>
                               {bando.sourceUrl && (
                                 <a
@@ -522,10 +523,22 @@ export function BandiPhase3() {
                                   target="_blank"
                                   rel="noreferrer"
                                   onClick={e => e.stopPropagation()}
-                                  title={`Apri: ${bando.sourceUrl}`}
+                                  title={`Pagina web: ${bando.sourceUrl}`}
                                   className="flex-shrink-0 rounded border border-[#333] bg-[#1a1a1a] px-1.5 py-0.5 text-[10px] text-[#aaa] hover:border-[#d4af37]/50 hover:text-[#f3d67a] transition-colors whitespace-nowrap"
                                 >
-                                  ↗ apri
+                                  ↗ pagina
+                                </a>
+                              )}
+                              {bando.applicationUrl && (
+                                <a
+                                  href={bando.applicationUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={e => e.stopPropagation()}
+                                  title={`PDF/Candidatura: ${bando.applicationUrl}`}
+                                  className="flex-shrink-0 rounded border border-[#d4af37]/30 bg-[#d4af37]/8 px-1.5 py-0.5 text-[10px] text-[#d4af37] hover:border-[#d4af37]/60 hover:text-[#f3d67a] transition-colors whitespace-nowrap"
+                                >
+                                  ↓ pdf
                                 </a>
                               )}
                             </div>
@@ -627,12 +640,12 @@ export function BandiPhase3() {
                     <div className="flex flex-wrap gap-2">
                       <a href={selectedBando.sourceUrl} target="_blank" rel="noreferrer"
                         className="rounded-lg border border-[#d4af37]/40 bg-[#d4af37]/10 px-4 py-2 text-sm font-medium text-[#f3d67a] transition hover:bg-[#d4af37]/20">
-                        Apri bando
+                        ↗ Pagina web
                       </a>
                       {selectedBando.applicationUrl && (
                         <a href={selectedBando.applicationUrl} target="_blank" rel="noreferrer"
                           className="rounded-lg border border-[#2d6c4b]/40 bg-[#153323] px-4 py-2 text-sm font-medium text-emerald-200 transition hover:bg-[#1b432e]">
-                          Vai alla candidatura
+                          ↓ PDF / Candidatura
                         </a>
                       )}
                     </div>
@@ -873,7 +886,7 @@ export function BandiPhase3() {
                               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                             </svg>
                           </button>
-                          <button type="button" onClick={() => handleDeleteSource(source.name)} title="Elimina"
+                          <button type="button" onClick={() => handleDeleteSource(source)} title="Elimina"
                             className="w-7 h-7 flex items-center justify-center rounded-lg text-[#555] hover:text-red-400 transition-colors">
                             <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                               <polyline points="3 6 5 6 21 6" />

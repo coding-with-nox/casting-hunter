@@ -101,16 +101,14 @@ public static class BandiEndpoints
             return Results.Ok(BandoSourceDto.FromEntity(source));
         });
 
-        group.MapDelete("/sources/{name}", async (
-            string name,
+        group.MapDelete("/sources/{id:int}", async (
+            int id,
             IBandoSourceRepository repo,
             CancellationToken ct) =>
         {
-            var source = await repo.GetByNameAsync(Uri.UnescapeDataString(name), ct);
+            var source = await repo.GetByIdAsync(id, ct);
             if (source is null) return Results.NotFound();
-            if (source.IsOfficial && source.Priority <= 15)
-                return Results.BadRequest("Le fonti ufficiali P1/P2 non possono essere eliminate, solo disattivate.");
-            await repo.DeleteAsync(Uri.UnescapeDataString(name), ct);
+            await repo.DeleteByIdAsync(id, ct);
             return Results.NoContent();
         });
 

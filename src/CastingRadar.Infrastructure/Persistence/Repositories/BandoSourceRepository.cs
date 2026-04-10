@@ -12,6 +12,9 @@ public class BandoSourceRepository(CastingRadarDbContext db) : IBandoSourceRepos
             .ThenBy(s => s.Name)
             .ToListAsync(ct);
 
+    public async Task<BandoSource?> GetByIdAsync(int id, CancellationToken ct = default) =>
+        await db.BandoSources.FindAsync([id], ct);
+
     public async Task<BandoSource?> GetByNameAsync(string name, CancellationToken ct = default) =>
         await db.BandoSources.FirstOrDefaultAsync(s => s.Name == name, ct);
 
@@ -30,6 +33,16 @@ public class BandoSourceRepository(CastingRadarDbContext db) : IBandoSourceRepos
     public async Task DeleteAsync(string name, CancellationToken ct = default)
     {
         var source = await db.BandoSources.FirstOrDefaultAsync(s => s.Name == name, ct);
+        if (source is not null)
+        {
+            db.BandoSources.Remove(source);
+            await db.SaveChangesAsync(ct);
+        }
+    }
+
+    public async Task DeleteByIdAsync(int id, CancellationToken ct = default)
+    {
+        var source = await db.BandoSources.FindAsync([id], ct);
         if (source is not null)
         {
             db.BandoSources.Remove(source);

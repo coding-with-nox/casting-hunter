@@ -149,8 +149,8 @@ export const castingApi = {
     });
   },
 
-  deleteBandoSource(name: string): Promise<void> {
-    return request<void>(`/bandi/sources/${encodeURIComponent(name)}`, { method: 'DELETE' });
+  deleteBandoSource(id: number): Promise<void> {
+    return request<void>(`/bandi/sources/${id}`, { method: 'DELETE' });
   },
 
   createCuratedBandoSource(data: { name: string; baseUrl: string; priority?: number; isOfficial?: boolean }): Promise<BandoSource> {

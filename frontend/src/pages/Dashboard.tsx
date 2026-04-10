@@ -41,7 +41,7 @@ export function Dashboard() {
   const { calls, loading, error, toggleFavorite, markApplied, unmarkApplied, toggleHidden } = useCastingCalls(filter);
   const [sort, setSort] = useState<SortKey>('newest');
 
-  const sorted = useMemo(() => sortCalls(calls, sort), [calls, sort]);
+  const sorted = useMemo(() => sortCalls(calls.filter(c => !c.isFavorite), sort), [calls, sort]);
 
   return (
     <div className="flex h-full">

@@ -66,16 +66,17 @@ public abstract class BaseBandoScraper(IHttpClientFactory httpClientFactory, ILo
     protected static string? TryAbsoluteUrl(string? baseUrl, string? rawUrl)
     {
         if (string.IsNullOrWhiteSpace(rawUrl))
-        {
             return null;
-        }
 
-        if (Uri.TryCreate(rawUrl, UriKind.Absolute, out var absolute))
+        // Only accept http/https — avoids file:// URIs che .NET genera da path assoluti tipo /news/...
+        if (Uri.TryCreate(rawUrl, UriKind.Absolute, out var absolute)
+            && (absolute.Scheme == Uri.UriSchemeHttp || absolute.Scheme == Uri.UriSchemeHttps))
         {
             return absolute.ToString();
         }
 
-        if (baseUrl is not null && Uri.TryCreate(new Uri(baseUrl), rawUrl, out var relative))
+        if (baseUrl is not null && Uri.TryCreate(new Uri(baseUrl), rawUrl, out var relative)
+            && (relative.Scheme == Uri.UriSchemeHttp || relative.Scheme == Uri.UriSchemeHttps))
         {
             return relative.ToString();
         }

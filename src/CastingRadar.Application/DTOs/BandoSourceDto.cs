@@ -3,6 +3,7 @@ using CastingRadar.Domain.Entities;
 namespace CastingRadar.Application.DTOs;
 
 public record BandoSourceDto(
+    int Id,
     string Name,
     string Category,
     string BaseUrl,
@@ -17,6 +18,7 @@ public record BandoSourceDto(
     string? LastRunError)
 {
     public static BandoSourceDto FromEntity(BandoSource s) => new(
+        s.Id,
         s.Name,
         s.Category,
         s.BaseUrl,

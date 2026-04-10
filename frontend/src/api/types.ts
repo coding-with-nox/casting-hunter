@@ -78,6 +78,7 @@ export interface Bando {
 }
 
 export interface BandoSource {
+  id: number;
   name: string;
   category: string;
   baseUrl: string;
