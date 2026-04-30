@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { CastingCall } from '../api/types';
 import { SourceBadge } from './SourceBadge';
 
@@ -10,6 +11,14 @@ interface Props {
 }
 
 export function CastingCard({ casting, onToggleFavorite, onMarkApplied, onUnmarkApplied, onToggleHidden }: Props) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(casting.sourceUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const deadline = casting.deadline
     ? new Date(casting.deadline).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
     : null;
@@ -145,6 +154,13 @@ export function CastingCard({ casting, onToggleFavorite, onMarkApplied, onUnmark
         >
           Candidati →
         </a>
+        <button
+          onClick={handleCopyLink}
+          className="text-sm py-2 px-3 rounded-lg border border-[#333] text-[#777] hover:border-blue-800/60 hover:text-blue-400 transition-colors"
+          title="Copia link"
+        >
+          {copied ? '✓' : '🔗'}
+        </button>
         {casting.isApplied ? (
           <button
             onClick={() => onUnmarkApplied(casting.id)}

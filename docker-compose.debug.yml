@@ -43,7 +43,7 @@ services:
         --no-launch-profile
     volumes:
       - .:/src:delegated
-      - ~/.nuget/packages:/root/.nuget/packages:ro
+      - ~/.nuget/packages:/root/.nuget/packages
       - vsdbg:/vsdbg:ro
       # Volumi isolati per bin/obj: evitano il file-lock con il worker
       # sui progetti condivisi (Infrastructure, Application, Domain)
@@ -85,7 +85,7 @@ services:
         --no-hot-reload
     volumes:
       - .:/src:delegated
-      - ~/.nuget/packages:/root/.nuget/packages:ro
+      - ~/.nuget/packages:/root/.nuget/packages
       - vsdbg:/vsdbg:ro
       # Volumi separati dai corrispettivi dell'api
       - worker-bin-worker:/src/src/CastingRadar.Worker/bin
